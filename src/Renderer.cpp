@@ -21,14 +21,17 @@ Renderer::~Renderer() {
 void Renderer::start() {
 
     shader = new Shader();
+    PLY_loader ply_loader;
 
-    // Setup VAO and VBO
+    std::vector<PointBuffer> points = ply_loader.load_ply("data/walrus.ply");
+    points_amount = points.size();
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(PointBuffer), points.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
     glEnableVertexAttribArray(0);
@@ -42,6 +45,6 @@ void Renderer::render()
 	glClear(GL_COLOR_BUFFER_BIT);
     shader->use();
 	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_POINTS, 0, points_amount);
 	glBindVertexArray(0);
 }
