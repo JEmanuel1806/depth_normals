@@ -1,12 +1,8 @@
 #include "Renderer.h"
 
-static const GLfloat vertices[] = {
-   -0.5f, -0.5f, 0.0f,
-    0.5f, -0.5f, 0.0f,
-    0.0f,  0.5f, 0.0f
-};
 
-Renderer::Renderer() {
+Renderer::Renderer(Camera* cam) {
+    camera = cam;
     shader = nullptr;
     VAO = 0;
     VBO = 0;
@@ -44,6 +40,13 @@ void Renderer::render()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
     shader->use();
+
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_POINTS, 0, points_amount);
 	glBindVertexArray(0);

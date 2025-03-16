@@ -1,8 +1,11 @@
 #version 440 core
 
-out vec4 FragColor;
+layout (location = 0) in vec3 position;
+
+uniform mat4 view;
+uniform mat4 proj;
 
 void main()
 {
-	FragColor = vec4(1.0f, 0.4f, 1.0f, 1.0f);
+    gl_Position = proj * view * vec4(position, 1.0);
 }
