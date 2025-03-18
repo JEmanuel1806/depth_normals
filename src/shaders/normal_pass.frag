@@ -6,15 +6,12 @@ in vec2 texCoords;
 out vec4 FragColor;
 
 uniform mat4 invProj;
-uniform mat4 invView;
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = (vec2(fragCoord) / iResolution) * 2.0 - 1.0;
     vec4 clipSpace = vec4(ndc, depth, 1.0);
     vec4 viewSpace = invProj * clipSpace;
-    viewSpace = viewSpace / viewSpace.w;
-    vec4 worldSpace = invView * viewSpace;
-    return worldSpace.xyz;
+    return viewSpace.xyz / viewSpace.w;
 }
 
 vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {

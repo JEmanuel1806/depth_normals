@@ -1,22 +1,36 @@
 #pragma once
 
-#include <GL/glew.h>
-
+#include "Camera.h"
 #include "Shader.h" 
 #include "PLY_loader.h"
+
+
 
 class Renderer {
 
 public:
-	Renderer();
+	Renderer(Camera* camera);
 	~Renderer();
+
+	GLuint FBO;
+	GLuint depthTex;
+	GLuint normalTex;
 
 	size_t points_amount;
 
 	void start();
 	void render();
 
+	
+	
 private:
-	Shader* shader;
+	Camera* camera;
+	Shader* shader_depth;
+	Shader* shader_normal;
+	Shader* shader_visualize;
 	GLuint VAO, VBO; 
+	GLuint quadVAO;
+
+	void configureFBO();
+	GLuint setupBufferVAO();
 };

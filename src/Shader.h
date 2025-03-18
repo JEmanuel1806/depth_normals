@@ -13,7 +13,7 @@ class Shader
 {
 public:
     unsigned int ID;
-    Shader();
+    Shader(const char* vertex_source, const char* fragment_source);
     ~Shader();
     void use();
 private:
