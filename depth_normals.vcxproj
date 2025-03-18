@@ -425,8 +425,6 @@
     <None Include="src\shaders\depth_pass.vert" />
     <None Include="src\shaders\normal_pass.frag" />
     <None Include="src\shaders\normal_pass.vert" />
-    <None Include="src\shaders\triangle_test.frag" />
-    <None Include="src\shaders\triangle_test.vert" />
     <None Include="src\shaders\visualize_normal.frag" />
     <None Include="src\shaders\visualize_normal.vert" />
   </ItemGroup>
