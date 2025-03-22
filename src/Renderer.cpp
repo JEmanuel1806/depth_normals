@@ -36,18 +36,21 @@ void Renderer::start() {
     
 	PLY_loader ply_loader;
 
-    std::vector<PointBuffer> points = ply_loader.load_ply("data/bimba.ply");
-    points_amount = points.size();
+    PointCloud pointCloud = ply_loader.load_ply("data/bimba.ply");
+	points_amount = pointCloud.points_amount();
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(PointBuffer), points.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, points_amount * sizeof(Point), pointCloud.points.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-    glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)0);                        // position
+	glEnableVertexAttribArray(0);
+
+	std::cout << "Rendering " << points_amount << " points.\n";
+	std::cout << "sizeof(Point): " << sizeof(Point) << std::endl;
 
 
 	quadVAO = setupBufferVAO();
@@ -82,7 +85,6 @@ void Renderer::render()
 	glDrawArrays(GL_POINTS, 0, points_amount);
 	glBindVertexArray(0);
 	
-	
 	// SECOND PASS (NORMAL TEX)
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	glDisable(GL_DEPTH_TEST);
@@ -116,6 +118,7 @@ void Renderer::render()
 	glBindVertexArray(quadVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+	
 	
 }
 

@@ -10,17 +10,14 @@
 #include <algorithm>
 #include <cctype>
 
-struct PointBuffer {
-	float x, y, z;
-	//float nx, ny, nz;
-	//int r, g, b;
-};
+#include "PointCloud.h"
+
 
 class PLY_loader {
 public:
-	std::vector<PointBuffer> load_ply(const std::string& filepath);
+	PointCloud load_ply(const std::string& filepath);
+	PointCloud extract_ascii_data(std::ifstream& ply_file, const std::vector<std::string>& property_order);
 private:
-	std::vector<PointBuffer> extract_ascii_data(std::ifstream& ply_file);
-	//std::vector<PointBuffer> extract_binary_data(std::ifstream& ply_file);
+	//PointCloud extract_binary_data(std::ifstream& ply_file);
 };
 
