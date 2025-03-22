@@ -21,6 +21,9 @@ public:
 	void start();
 	void render();
 
+	bool show_normals = false;
+	bool show_depth_only = false;
+
 	
 	
 private:
@@ -28,9 +31,12 @@ private:
 	Shader* shader_depth;
 	Shader* shader_normal;
 	Shader* shader_visualize;
+	Shader* shader_lines;
 	GLuint VAO, VBO; 
 	GLuint quadVAO;
+	GLuint lineVAO;
 
 	void configureFBO();
 	GLuint setupBufferVAO();
+	GLuint setupLineVAO();
 };

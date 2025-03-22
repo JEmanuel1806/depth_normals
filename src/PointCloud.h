@@ -21,6 +21,12 @@ public:
 	int points_amount() {
 		return points.size();
 	}
+
+	Point* getPointByID(int id);
+
+	glm::vec3 getNormalByID(int id);
+	glm::vec3 getColorByID(int id);
+
 	
 private:
 	
