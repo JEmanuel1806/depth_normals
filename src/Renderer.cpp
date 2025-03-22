@@ -33,10 +33,11 @@ void Renderer::start() {
     shader_depth = new Shader("src/shaders/depth_pass.vert","src/shaders/depth_pass.frag");
 	shader_normal = new Shader("src/shaders/normal_pass.vert","src/shaders/normal_pass.frag");
 	shader_visualize = new Shader("src/shaders/visualize_normal.vert","src/shaders/visualize_normal.frag");
+	shader_lines = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom", "src/shaders/draw_lines.frag");
     
 	PLY_loader ply_loader;
 
-    PointCloud pointCloud = ply_loader.load_ply("data/bimba.ply");
+    PointCloud pointCloud = ply_loader.load_ply("data/torus.ply");
 	points_amount = pointCloud.points_amount();
 
     glGenVertexArrays(1, &VAO);
@@ -53,7 +54,10 @@ void Renderer::start() {
 	std::cout << "sizeof(Point): " << sizeof(Point) << std::endl;
 
 
+
+
 	quadVAO = setupBufferVAO();
+	lineVAO = setupLineVAO();
 	configureFBO();
 
 	// Check currentFBO
@@ -67,16 +71,19 @@ void Renderer::start() {
 
 void Renderer::render()
 {    
+
+	glm::mat4 view = camera->GetViewMatrix();
+	glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+	
 	// FIRST PASS (DEPTH TEX)
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 
 	shader_depth->use();
-
-	glm::mat4 view = camera->GetViewMatrix();
-	glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
 	glUniformMatrix4fv(glGetUniformLocation(shader_depth->ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(glGetUniformLocation(shader_depth->ID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -84,6 +91,7 @@ void Renderer::render()
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_POINTS, 0, points_amount);
 	glBindVertexArray(0);
+
 	
 	// SECOND PASS (NORMAL TEX)
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
@@ -98,6 +106,7 @@ void Renderer::render()
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "invProj"), 1, GL_FALSE, glm::value_ptr(glm::inverse(projection)));
+	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "invView"), 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 	glBindVertexArray(quadVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -105,7 +114,8 @@ void Renderer::render()
 
 	
 	// THIRD PASS (visualiuze for debugging)
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);	
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
@@ -118,6 +128,21 @@ void Renderer::render()
 	glBindVertexArray(quadVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+
+	if(show_normals == true){
+
+		// FOURTH PASS, NORMALS AS LINES
+
+		shader_lines->use();
+
+		glUniformMatrix4fv(glGetUniformLocation(shader_lines->ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(shader_lines->ID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+
+		glBindVertexArray(lineVAO);
+		glDrawArrays(GL_POINTS, 0, points_amount);
+		glBindVertexArray(0);
+	}
+	
 	
 	
 }
@@ -141,6 +166,23 @@ GLuint Renderer::setupBufferVAO() {
 	glBindVertexArray(0);
 
 	return quadVAO;
+}
+
+GLuint Renderer::setupLineVAO()
+{
+	glGenVertexArrays(1, &lineVAO);
+	glBindVertexArray(lineVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO); 
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, position));
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, normal));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+
+	return lineVAO;
 }
 
 void Renderer::configureFBO()

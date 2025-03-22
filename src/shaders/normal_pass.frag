@@ -6,16 +6,21 @@ in vec2 texCoords;
 out vec4 FragColor;
 
 uniform mat4 invProj;
+uniform mat4 invView;
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = (vec2(fragCoord) / iResolution) * 2.0 - 1.0;
     vec4 clipSpace = vec4(ndc, depth, 1.0);
     vec4 viewSpace = invProj * clipSpace;
-    return viewSpace.xyz / viewSpace.w;
+    viewSpace /= viewSpace.w;
+
+    // Convert to world space
+    vec4 worldSpace = invView * viewSpace;
+    return worldSpace.xyz;
 }
 
 vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
-
+    
     // clamp for outside boundary point (not below 0 and not above resolution)
     ivec2 left = clamp(p - ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
     ivec2 right = clamp(p + ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));

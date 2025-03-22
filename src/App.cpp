@@ -53,6 +53,8 @@ void App::run() {
 
 void App::processInput(GLFWwindow* window)
 {
+	// movement
+	
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 		camera->ProcessKeyboard(FORWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -61,6 +63,20 @@ void App::processInput(GLFWwindow* window)
 		camera->ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera->ProcessKeyboard(RIGHT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+		camera->ProcessKeyboard(ROTATE_LEFT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+		camera->ProcessKeyboard(ROTATE_RIGHT, deltaTime);
+
+	// helpers
+
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !key_pressed) {
+		renderer->show_normals = !renderer->show_normals;
+		key_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
+		key_pressed = false;
+	}
 }
 
 

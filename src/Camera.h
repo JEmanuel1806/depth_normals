@@ -12,7 +12,9 @@ enum Camera_Movement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    ROTATE_LEFT,   
+    ROTATE_RIGHT   
 };
 
 class Camera {

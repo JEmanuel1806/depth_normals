@@ -427,6 +427,9 @@
     <None Include="includes\glm\gtx\wrap.inl" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
+    <None Include="src\shaders\draw_lines.frag" />
+    <None Include="src\shaders\draw_lines.geom" />
+    <None Include="src\shaders\draw_lines.vert" />
     <None Include="src\shaders\normal_pass.frag" />
     <None Include="src\shaders\normal_pass.vert" />
     <None Include="src\shaders\visualize_normal.frag" />

@@ -14,6 +14,7 @@ class Shader
 public:
     unsigned int ID;
     Shader(const char* vertex_source, const char* fragment_source);
+    Shader(const char* vertex_source, const char* geometry_source, const char* fragment_source);
     ~Shader();
     void use();
 private:
