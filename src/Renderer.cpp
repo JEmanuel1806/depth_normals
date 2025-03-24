@@ -37,7 +37,7 @@ void Renderer::start() {
     
 	PLY_loader ply_loader;
 
-    PointCloud pointCloud = ply_loader.load_ply("data/torus.ply");
+    PointCloud pointCloud = ply_loader.load_ply("data/sphere_no_normals.ply");
 	points_amount = pointCloud.points_amount();
 
     glGenVertexArrays(1, &VAO);
@@ -106,7 +106,7 @@ void Renderer::render()
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "invProj"), 1, GL_FALSE, glm::value_ptr(glm::inverse(projection)));
-	glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "invView"), 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
+	//glUniformMatrix4fv(glGetUniformLocation(shader_normal->ID, "invView"), 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 	glBindVertexArray(quadVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);

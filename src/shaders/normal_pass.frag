@@ -6,17 +6,14 @@ in vec2 texCoords;
 out vec4 FragColor;
 
 uniform mat4 invProj;
-uniform mat4 invView;
+uniform mat4 view;
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = (vec2(fragCoord) / iResolution) * 2.0 - 1.0;
     vec4 clipSpace = vec4(ndc, depth, 1.0);
     vec4 viewSpace = invProj * clipSpace;
     viewSpace /= viewSpace.w;
-
-    // Convert to world space
-    vec4 worldSpace = invView * viewSpace;
-    return worldSpace.xyz;
+    return viewSpace.xyz;
 }
 
 vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
@@ -34,12 +31,18 @@ vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
 
     vec3 dpdx = r1 - l1;
     vec3 dpdy = t1 - b1;
+
     return normalize(cross(dpdx, dpdy));
 }
 
 void main() {
     ivec2 fragCoord = ivec2(gl_FragCoord.xy);
     vec3 normal = computeNormalNaive(depthTex, fragCoord);
-    vec3 color = normal * 0.5 + 0.5; // to RGB 0 - 1 range
+
+    mat4 normalMatrix = transpose(inverse(view));
+    vec3 normal_world = normalize(normalMatrix * normal);
+
+    vec3 color = normal_world * 0.5 + 0.5;
     FragColor = vec4(color, 1.0);
+
 }

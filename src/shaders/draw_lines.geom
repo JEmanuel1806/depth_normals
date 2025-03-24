@@ -8,7 +8,7 @@ in vec3 vPosition[];
 uniform mat4 view;
 uniform mat4 proj;
 
-float scaleFactor = 0.1;
+float scaleFactor = 0.3;
 
 void main()
 {
