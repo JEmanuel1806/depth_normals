@@ -27,6 +27,8 @@ public:
 	glm::vec3 getNormalByID(int id);
 	glm::vec3 getColorByID(int id);
 
+	bool hasNormals = false;
+
 	
 private:
 	

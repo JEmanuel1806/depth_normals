@@ -20,6 +20,7 @@ glm::mat4 Camera::GetViewMatrix() {
     return glm::lookAt(Position, Position + Front, Up);
 }
 
+// Movement stuff for the camera
 void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime) {
     float velocity = MovementSpeed * deltaTime;
 
@@ -34,11 +35,11 @@ void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime) {
 
     // Yaw rotation with Q/E
     if (direction == ROTATE_LEFT)
-        Yaw -= 50.0f * deltaTime;  // adjust sensitivity
+        Yaw -= 50.0f * deltaTime;  
     if (direction == ROTATE_RIGHT)
         Yaw += 50.0f * deltaTime;
 
-    updateCameraVectors();  // always update
+    updateCameraVectors();  
 }
 
 
@@ -59,6 +60,8 @@ void Camera::ProcessMouseMovement(float xoffset, float yoffset, bool constrainPi
     updateCameraVectors();
 }
 
+
+//Not used atm
 void Camera::ProcessMouseScroll(float yoffset) {
     Zoom -= (float)yoffset;
     if (Zoom < 1.0f)

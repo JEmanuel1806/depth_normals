@@ -10,6 +10,7 @@ uniform mat4 proj;
 
 float scaleFactor = 0.3;
 
+// for each point generate a line starting from the point and ending with a scale factor of the normal
 void main()
 {
     vec3 start = vPosition[0];

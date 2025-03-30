@@ -430,10 +430,10 @@
     <None Include="src\shaders\draw_lines.frag" />
     <None Include="src\shaders\draw_lines.geom" />
     <None Include="src\shaders\draw_lines.vert" />
-    <None Include="src\shaders\normal_pass.frag" />
-    <None Include="src\shaders\normal_pass.vert" />
-    <None Include="src\shaders\visualize_normal.frag" />
-    <None Include="src\shaders\visualize_normal.vert" />
+    <None Include="src\shaders\draw_points.frag" />
+    <None Include="src\shaders\draw_points.vert" />
+    <None Include="src\shaders\calc_normal.frag" />
+    <None Include="src\shaders\calc_normal.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
