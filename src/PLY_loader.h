@@ -15,9 +15,13 @@
 
 class PLY_loader {
 public:
-	PointCloud load_ply(const std::string& filepath);
-	PointCloud extract_ascii_data(std::ifstream& ply_file, const std::vector<std::string>& property_order);
+
+	bool m_hasNormals = false;
+
+	PointCloud LoadPLY(const std::string& filepath);
+	
 private:
-	//PointCloud extract_binary_data(std::ifstream& ply_file);
+	//PointCloud ExtractBinaryData(std::ifstream& ply_file);
+	PointCloud ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order);
 };
 

@@ -7,36 +7,43 @@
 
 
 class Renderer {
-
 public:
-	Renderer(Camera* camera);
-	~Renderer();
+    Renderer(Camera* pCamera);
+    ~Renderer();
 
-	GLuint FBO;
-	GLuint depthTex;
-	GLuint normalTex;
+    void Start();
+    void Render();
 
-	size_t points_amount;
+    bool m_showNormals = false;
+    bool m_showDepthOnly = false;
 
-	void start();
-	void render();
+    GLuint m_fbo = 0;
+    GLuint m_depthTex = 0;
+    GLuint m_idTex = 0;
+    GLuint m_normalTex = 0;
 
-	bool show_normals = false;
-	bool show_depth_only = false;
+    size_t m_pointsAmount = 0;
 
-	
-	
 private:
-	Camera* camera;
-	Shader* shader_depth;
-	Shader* shader_normal;
-	Shader* shader_visualize;
-	Shader* shader_lines;
-	GLuint VAO, VBO; 
-	GLuint quadVAO;
-	GLuint lineVAO;
+    Camera* m_pCamera = nullptr;
 
-	void configureFBO();
-	GLuint setupBufferVAO();
-	GLuint setupLineVAO();
+    PointCloud m_pointCloud;
+
+    Shader* m_pShaderDepth = nullptr;
+    Shader* m_pShaderPointsOnly = nullptr;
+    Shader* m_pShaderCalcNormal = nullptr;
+    Shader* m_pShaderPointsNormals = nullptr;
+
+    GLuint m_VAO = 0;
+    GLuint m_VBO = 0;
+    GLuint m_quadVAO = 0;
+    GLuint m_lineVAO = 0;
+
+private:
+    void ConfigureFBO();
+    GLuint SetupLineVAO();
+
+    void ReadNormalTexture(std::vector<glm::vec3>& normals);
+    void ReadIDTexture(std::vector<int>& ids);
+    void AssignNormalsToPointCloud(PointCloud& pointCloud);
 };
