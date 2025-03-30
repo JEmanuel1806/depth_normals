@@ -435,6 +435,9 @@
     <None Include="src\shaders\calc_normal.frag" />
     <None Include="src\shaders\calc_normal.vert" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="CMakeLists.txt" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
