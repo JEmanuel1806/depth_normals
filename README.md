@@ -15,7 +15,7 @@ The primary goal is to provide accurate normals that can be subsequently used in
 This project serves as a preprocessing step to enhance point cloud data by generating reliable normal information, which is crucial for accurate surface reconstruction.
 
 **Dependencies:**
-GLEW is used for managing OpenGL extensions across platforms. (includes/GL)
-GLFW is used for cross-platform window management. (includes/GLFW)
-GLM is used for matrix operations. (includes/glm)
-STB_IMAGE is used for texture loading and processing. (includes/.)
+* GLEW is used for managing OpenGL extensions across platforms. (includes/GL)
+* GLFW is used for cross-platform window management. (includes/GLFW)
+* GLM is used for matrix operations. (includes/glm)
+* STB_IMAGE is used for texture loading and processing. (includes/.)
