@@ -1,35 +1,24 @@
 #pragma once
 
 #include "Point.h"
-
 #include <vector>
 
 class PointCloud {
 public:
-	std::vector<Point> points;
 
-	void addPoint(Point point) {
-		points.push_back(point);
-	}
+    void AddPoint(const Point& point) {
+        m_points.push_back(point);
+    }
 
-	/*
-	void removePoint(Point point) {
-		points.erase(std::remove(points.begin(), points.end(), point), points.end());
-	}
-	*/
+    int PointsAmount() const {
+        return static_cast<int>(m_points.size());
+    }
 
-	int points_amount() {
-		return points.size();
-	}
+    Point* GetPointByID(int id);
+    glm::vec3 GetNormalByID(int id);
+    glm::vec3 GetColorByID(int id);
 
-	Point* getPointByID(int id);
-
-	glm::vec3 getNormalByID(int id);
-	glm::vec3 getColorByID(int id);
-
-	bool hasNormals = false;
-
-	
-private:
-	
+public:
+    bool m_hasNormals = false;
+    std::vector<Point> m_points;
 };

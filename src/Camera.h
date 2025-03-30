@@ -1,44 +1,51 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#pragma once
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
 
-enum Camera_Movement {
+constexpr unsigned int SCREEN_WIDTH = 800;
+constexpr unsigned int SCREEN_HEIGHT = 600;
+
+
+enum CameraMovement {
     FORWARD,
     BACKWARD,
     LEFT,
     RIGHT,
-    ROTATE_LEFT,   
-    ROTATE_RIGHT   
+    ROTATE_LEFT,
+    ROTATE_RIGHT
 };
+
 
 class Camera {
 public:
-    glm::vec3 Position;
-    glm::vec3 Front;
-    glm::vec3 Up;
-    glm::vec3 Right;
-    glm::vec3 WorldUp;
-    float Yaw;
-    float Pitch;
-    float MovementSpeed;
-    float MouseSensitivity;
-    float Zoom;
+    Camera(glm::vec3 vecPosition = glm::vec3(0.0f),
+        glm::vec3 vecUp = glm::vec3(0.0f, 1.0f, 0.0f),
+        float fYaw = -90.0f,
+        float fPitch = 0.0f);
 
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = -90.0f, float pitch = 0.0f);
+    glm::mat4 GetViewMatrix() const;
 
-    glm::mat4 GetViewMatrix();
-    void ProcessKeyboard(Camera_Movement direction, float deltaTime);
-    void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true);
-    void ProcessMouseScroll(float yoffset);
+    void ProcessKeyboard(CameraMovement direction, float fDeltaTime);
+    void ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrainPitch = true);
+    void ProcessMouseScroll(float fYOffset);
 
 private:
-    void updateCameraVectors();
-};
+    void UpdateCameraVectors();
 
-#endif
+public:
+    glm::vec3 m_vecPosition;
+    glm::vec3 m_vecFront;
+    glm::vec3 m_vecUp;
+    glm::vec3 m_vecRight;
+    glm::vec3 m_vecWorldUp;
+
+    float m_yaw;
+    float m_pitch;
+
+    float m_movementSpeed;
+    float m_mouseSensitivity;
+    float m_zoom;
+};

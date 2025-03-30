@@ -4,56 +4,56 @@
 #include <sstream>
 
 Shader::Shader(const char* vertex_source, const char* fragment_source) {
-    std::string vertexCode = readFile(vertex_source);
-    std::string fragmentCode = readFile(fragment_source);
+    std::string vertexCode = ReadFile(vertex_source);
+    std::string fragmentCode = ReadFile(fragment_source);
 
     const char* vertex_shader_code = vertexCode.c_str();
     const char* fragment_shader_code = fragmentCode.c_str();
 
-    GLuint vertex_shader = compileShader(vertex_shader_code, GL_VERTEX_SHADER);
-    GLuint fragment_shader = compileShader(fragment_shader_code, GL_FRAGMENT_SHADER);
+    GLuint vertex_shader = CompileShader(vertex_shader_code, GL_VERTEX_SHADER);
+    GLuint fragment_shader = CompileShader(fragment_shader_code, GL_FRAGMENT_SHADER);
 
-    ID = glCreateProgram();
-    glAttachShader(ID, vertex_shader);
-    glAttachShader(ID, fragment_shader);
-    glLinkProgram(ID);
+    m_shaderID = glCreateProgram();
+    glAttachShader(m_shaderID, vertex_shader);
+    glAttachShader(m_shaderID, fragment_shader);
+    glLinkProgram(m_shaderID);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 }
 
 Shader::Shader(const char* vertex_source, const char* geometry_source, const char* fragment_source) {
-    std::string vertexCode = readFile(vertex_source);
-    std::string geometryCode = readFile(geometry_source);
-    std::string fragmentCode = readFile(fragment_source);
+    std::string vertexCode = ReadFile(vertex_source);
+    std::string geometryCode = ReadFile(geometry_source);
+    std::string fragmentCode = ReadFile(fragment_source);
 
     const char* vertex_shader_code = vertexCode.c_str();
     const char* geometry_shader_code = geometryCode.c_str();
     const char* fragment_shader_code = fragmentCode.c_str();
 
-    GLuint vertex_shader = compileShader(vertex_shader_code, GL_VERTEX_SHADER);
-    GLuint geometry_shader = compileShader(geometry_shader_code, GL_GEOMETRY_SHADER);
-    GLuint fragment_shader = compileShader(fragment_shader_code, GL_FRAGMENT_SHADER);
+    GLuint vertex_shader = CompileShader(vertex_shader_code, GL_VERTEX_SHADER);
+    GLuint geometry_shader = CompileShader(geometry_shader_code, GL_GEOMETRY_SHADER);
+    GLuint fragment_shader = CompileShader(fragment_shader_code, GL_FRAGMENT_SHADER);
 
-    ID = glCreateProgram();
-    glAttachShader(ID, vertex_shader);
-    glAttachShader(ID, geometry_shader);
-    glAttachShader(ID, fragment_shader);
-    glLinkProgram(ID);
+    m_shaderID = glCreateProgram();
+    glAttachShader(m_shaderID, vertex_shader);
+    glAttachShader(m_shaderID, geometry_shader);
+    glAttachShader(m_shaderID, fragment_shader);
+    glLinkProgram(m_shaderID);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 }
 
 Shader::~Shader() {
-    glDeleteProgram(ID);
+    glDeleteProgram(m_shaderID);
 }
 
-void Shader::use() {
-    glUseProgram(ID);
+void Shader::Use() {
+    glUseProgram(m_shaderID);
 }
 
-std::string Shader::readFile(const std::string& shader_path) {
+std::string Shader::ReadFile(const std::string& shader_path) {
     std::ifstream shader_file(shader_path);
     std::stringstream shader_content;
 
@@ -69,7 +69,7 @@ std::string Shader::readFile(const std::string& shader_path) {
     return shader_content.str();
 }
 
-GLuint Shader::compileShader(const char* source, GLenum type) {
+GLuint Shader::CompileShader(const char* source, GLenum type) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);

@@ -12,7 +12,7 @@
  * 
  */
 
-PointCloud PLY_loader::load_ply(const std::string& filepath) {
+PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     std::ifstream ply_file(filepath);
     std::string ply_format = "";
     std::vector<std::string> property_order;
@@ -44,7 +44,7 @@ PointCloud PLY_loader::load_ply(const std::string& filepath) {
     }
 
     if (ply_format == "ascii") {
-        return extract_ascii_data(ply_file, property_order);
+        return ExtractAsciiData(ply_file, property_order);
     }
 
     // TODO: binary
@@ -63,7 +63,7 @@ PointCloud PLY_loader::load_ply(const std::string& filepath) {
  *  - Adds the point to the cloud
  *
  */
-PointCloud PLY_loader::extract_ascii_data(std::ifstream& ply_file, const std::vector<std::string>& property_order) {
+PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order) {
     PointCloud cloud;
     int id_counter = 0;
     std::string line;
@@ -72,31 +72,32 @@ PointCloud PLY_loader::extract_ascii_data(std::ifstream& ply_file, const std::ve
     while (std::getline(ply_file, line)) {
         std::istringstream iss(line);
         Point point;
-        point.ID = id_counter++;
+        point.m_pointID = id_counter++;
 
         int r = 255, g = 255, b = 255; // fallback color
 
         // Fill the point with properties of ply file
         for (const std::string& prop : property_order) {
-            if (prop == "x") iss >> point.position.x;
-            else if (prop == "y") iss >> point.position.y;
-            else if (prop == "z") iss >> point.position.z;
-            else if (prop == "nx") { iss >> point.normal.x; has_nx = true; }
-            else if (prop == "ny") { iss >> point.normal.y; has_ny = true; }
-            else if (prop == "nz") { iss >> point.normal.z; has_nz = true; }
+            if (prop == "x") iss >> point.m_position.x;
+            else if (prop == "y") iss >> point.m_position.y;
+            else if (prop == "z") iss >> point.m_position.z;
+            else if (prop == "nx") { iss >> point.m_normal.x; has_nx = true; }
+            else if (prop == "ny") { iss >> point.m_normal.y; has_ny = true; }
+            else if (prop == "nz") { iss >> point.m_normal.z; has_nz = true; }
             else if (prop == "red") iss >> r;
             else if (prop == "green") iss >> g;
             else if (prop == "blue") iss >> b;
         }
 
-        cloud.hasNormals = has_nx && has_ny && has_nz;
+        cloud.m_hasNormals = has_nx && has_ny && has_nz;
+
 
         // default color values
-        point.color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
-        cloud.addPoint(point);
+        point.m_color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
+        cloud.AddPoint(point);
     }
 
-    std::cerr << "Loaded points: " << cloud.points_amount() << std::endl;
+    std::cerr << "Loaded points: " << cloud.PointsAmount() << std::endl;
 
     return cloud;
 }

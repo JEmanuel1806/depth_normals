@@ -21,7 +21,7 @@ App::App(unsigned int width, unsigned height)
 
 	camera = new Camera(glm::vec3(0.0f, 0.0f, 3.0f));
 	renderer = new Renderer(camera);
-	renderer->start();
+	renderer->Start();
 
 	
 }
@@ -44,7 +44,7 @@ void App::run() {
 		processInput(window);
 
 
-		renderer->render(); 
+		renderer->Render(); 
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -71,7 +71,7 @@ void App::processInput(GLFWwindow* window)
 	// helpers
 
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !key_pressed) {
-		renderer->show_normals = !renderer->show_normals;
+		renderer->m_showNormals = !renderer->m_showNormals;
 		key_pressed = true;
 	}
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {

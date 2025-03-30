@@ -3,7 +3,7 @@
 layout(location = 0) out float FragDepth; 
 layout(location = 1) out int IDOut;       
 
-in int ID;
+flat in int ID;
 
 void main() {
     FragDepth = gl_FragCoord.z;

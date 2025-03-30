@@ -1,25 +1,26 @@
-#ifndef SHADER_H
-#define SHADER_H
+#pragma once
 
 #include <GL/glew.h>
-
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
-
-class Shader
-{
+class Shader {
 public:
-    unsigned int ID;
-    Shader(const char* vertex_source, const char* fragment_source);
-    Shader(const char* vertex_source, const char* geometry_source, const char* fragment_source);
-    ~Shader();
-    void use();
-private:
-    std::string readFile(const std::string& shader_path);
-    GLuint compileShader(const char* source, GLenum type);
-};
+    // Shader program ID
+    GLuint m_shaderID;;
 
-#endif
+public:
+    Shader(const char* szVertexPath, const char* szFragmentPath);
+    Shader(const char* szVertexPath, const char* szGeometryPath, const char* szFragmentPath);
+    ~Shader();
+
+    void Use();
+
+private:
+
+    std::string ReadFile(const std::string& shaderPath);
+
+    GLuint CompileShader(const char* source, GLenum type);
+};

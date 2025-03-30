@@ -1,20 +1,23 @@
 #include "Point.h"
 
 
-
-void Point::setPosition(glm::vec3 pos)
+void Point::SetPosition(const glm::vec3& pos)
 {
-    position = pos;
+	m_position = pos;
 }
 
-glm::vec3 Point::getPosition() {
-    return position;
+
+void Point::SetNormal(const glm::vec3& norm)
+{
+	m_normal = norm;
 }
 
-void Point::setNormal(glm::vec3 norm) {
-    normal = norm;
+glm::vec3 Point::GetPosition() const
+{
+	return m_position;
 }
 
-glm::vec3 Point::getNormal() {
-    return normal;
+glm::vec3 Point::GetNormal() const
+{
+	return m_normal;
 }

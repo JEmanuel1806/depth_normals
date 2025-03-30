@@ -6,7 +6,7 @@ layout (location = 1) in int ID;
 uniform mat4 view;
 uniform mat4 proj;
 
-out int vertex_id;
+flat out int vertex_id;
 
 void main()
 {
