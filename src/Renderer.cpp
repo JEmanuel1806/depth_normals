@@ -1,4 +1,4 @@
-/* -------------------------------------------------------------------------
+﻿/* -------------------------------------------------------------------------
  *  Renderer.cpp
  *
  *  This file contains the implementation of the Renderer class responsible
@@ -45,7 +45,7 @@ void Renderer::Start() {
 
 	// Load point cloud from PLY file
 	PLY_loader ply_loader;
-	m_pointCloud = ply_loader.LoadPLY("data/sphere_no_normals.ply");
+	m_pointCloud = ply_loader.LoadPLY("data/walrus.ply");
 	m_pointsAmount = m_pointCloud.PointsAmount();
 
 	glGenVertexArrays(1, &m_VAO);
@@ -53,6 +53,7 @@ void Renderer::Start() {
 
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
 	glBufferData(GL_ARRAY_BUFFER, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data(), GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, m_position));
@@ -105,7 +106,7 @@ void Renderer::Render() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
-		m_pShaderDepth->Use();
+		m_pShaderDepth->Use(); // use depth_pass shader
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 
@@ -117,7 +118,7 @@ void Renderer::Render() {
 		glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 		glDisable(GL_DEPTH_TEST);
 
-		m_pShaderCalcNormal->Use();
+		m_pShaderCalcNormal->Use(); // use calc_normal shader
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_depthTex);
@@ -150,12 +151,12 @@ void Renderer::Render() {
 	glDisable(GL_DEPTH_TEST);
 
 	if (m_showNormals) {
-		m_pShaderPointsNormals->Use();
+		m_pShaderPointsNormals->Use(); // use draw_lines shader, for normal visualization
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 	}
 	else {
-		m_pShaderPointsOnly->Use();
+		m_pShaderPointsOnly->Use(); // use draw_points shader, no normal visualization, just point cloud
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 	}
@@ -236,13 +237,13 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud)
 
 	for (size_t i = 0; i < normals.size(); ++i) {
 		int id = ids[i];
-		//std::cout << normals[i].z << std::endl;
-		// std::cout << ids[i] << " - ";
+
 		if (id >= 0 && id < pointCloud.PointsAmount()) {
 			pointCloud.GetPointByID(id)->m_normal = normals[i];
-			
 		}
 	}
+
+
 }
 
 /* -------------------------------------------------------------------------
