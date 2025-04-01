@@ -8,7 +8,7 @@ in vec3 vPosition[];
 uniform mat4 view;
 uniform mat4 proj;
 
-float scaleFactor = 0.3;
+float scaleFactor = 0.6;
 
 // for each point generate a line starting from the point and ending with a scale factor of the normal
 void main()

@@ -24,8 +24,8 @@ App::App(unsigned int width, unsigned height)
 	
 	renderer_left = new Renderer(camera);
 	renderer_right = new Renderer(camera);
-	renderer_left->Start("data/sphere.ply");
-	renderer_right->Start("data/sphere_no_normals.ply");
+	renderer_left->Start("data/custom/ground_truth/cube.ply");
+	renderer_right->Start("data/custom/no_normals/cube_no_normals.ply");
 
 	run(width, height);
 }
