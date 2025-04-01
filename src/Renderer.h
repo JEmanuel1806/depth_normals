@@ -4,6 +4,10 @@
 #include "Shader.h" 
 #include "PLY_loader.h"
 
+#define STB_EASY_FONT_IMPLEMENTATION
+#include "stb_easy_font.h"
+
+
 
 
 class Renderer {
@@ -11,8 +15,8 @@ public:
     Renderer(Camera* pCamera);
     ~Renderer();
 
-    void Start();
-    void Render();
+    void Start(std::string ply_path);
+    void Render(float width, float height,float fps);
 
     bool m_showNormals = false;
     bool m_showDepthOnly = false;
@@ -46,4 +50,5 @@ private:
     void ReadNormalTexture(std::vector<glm::vec3>& normals);
     void ReadIDTexture(std::vector<int>& ids);
     void AssignNormalsToPointCloud(PointCloud& pointCloud);
+    void RenderText(unsigned width, unsigned heigth, float fps);
 };

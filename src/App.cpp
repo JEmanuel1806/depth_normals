@@ -1,5 +1,6 @@
 #include "App.h"
 
+
 App::App(unsigned int width, unsigned height)
 {
 
@@ -20,20 +21,24 @@ App::App(unsigned int width, unsigned height)
 	}
 
 	camera = new Camera(glm::vec3(0.0f, 0.0f, 3.0f));
-	renderer = new Renderer(camera);
-	renderer->Start();
-
 	
+	renderer_left = new Renderer(camera);
+	renderer_right = new Renderer(camera);
+	renderer_left->Start("data/sphere.ply");
+	renderer_right->Start("data/sphere_no_normals.ply");
+
+	run(width, height);
 }
 
 App::~App() {
-	delete renderer;
+	delete renderer_left;
+	delete renderer_right;
 	delete camera;
 	glfwDestroyWindow(window);
 	glfwTerminate();
 }
 
-void App::run() {
+void App::run(unsigned int width, unsigned int height) {
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -41,10 +46,19 @@ void App::run() {
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+		float fps = 1.0f / deltaTime;
+
 		processInput(window);
 
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		renderer->Render(); 
+		// left viewport for ground truth
+		glViewport(0, 0, (float)width / 2, (float)height);
+		renderer_left->Render((float)width / 2, (float)height, fps);
+
+		// right viewport for calculated normal
+		glViewport((float)width / 2, 0, (float)width / 2, (float)height);
+		renderer_right->Render((float)width / 2, (float)height, fps);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -71,7 +85,8 @@ void App::processInput(GLFWwindow* window)
 	// helpers
 
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !key_pressed) {
-		renderer->m_showNormals = !renderer->m_showNormals;
+		renderer_left->m_showNormals = !renderer_left->m_showNormals;
+		renderer_right->m_showNormals = !renderer_right->m_showNormals;
 		key_pressed = true;
 	}
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
@@ -97,7 +112,7 @@ void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 	float xoffset = xpos - lastX;
 	float yoffset = lastY - ypos;
 
-	lastX = xpos;
+	lastX = xpos;x
 	lastY = ypos;
 
 	camera.ProcessMouseMovement(xoffset, yoffset);

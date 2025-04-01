@@ -7,6 +7,10 @@
 #include <GLFW/glfw3.h>
 
 
+#include <sstream>
+#include <string>
+
+
 #include <iostream>
 
 
@@ -27,10 +31,11 @@ public:
 
 	App(unsigned int width, unsigned height);
 	~App();
-	void run();
+	void run(unsigned int width, unsigned int height);
 	void processInput(GLFWwindow* window);
 	void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 private:
 	GLFWwindow* window;
-	Renderer* renderer;
+	Renderer* renderer_left;
+	Renderer* renderer_right;
 };

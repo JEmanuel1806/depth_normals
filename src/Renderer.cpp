@@ -36,7 +36,7 @@ Renderer::~Renderer() {
  * configures vertex attributes and framebuffers.
  * -------------------------------------------------------------------------
  */
-void Renderer::Start() {
+void Renderer::Start(std::string ply_path) {
 	// Load and compile shaders for various render passes
 	m_pShaderDepth = new Shader("src/shaders/depth_pass.vert", "src/shaders/depth_pass.frag");
 	m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
@@ -45,7 +45,7 @@ void Renderer::Start() {
 
 	// Load point cloud from PLY file
 	PLY_loader ply_loader;
-	m_pointCloud = ply_loader.LoadPLY("data/walrus.ply");
+	m_pointCloud = ply_loader.LoadPLY(ply_path);
 	m_pointsAmount = m_pointCloud.PointsAmount();
 
 	glGenVertexArrays(1, &m_VAO);
@@ -91,9 +91,9 @@ void Renderer::Start() {
  * 
  * -------------------------------------------------------------------------
  */
-void Renderer::Render() {
+void Renderer::Render(float width, float height, float fps) {
 	glm::mat4 view = m_pCamera->GetViewMatrix();
-	glm::mat4 projection = glm::perspective(glm::radians(m_pCamera->m_zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(m_pCamera->m_zoom), width / height, 0.1f, 100.0f);
 
 	// Clear ID texture (used to map screen pixels back to point IDs), default value "-1"
 	GLint clearValue = -1;
@@ -147,7 +147,6 @@ void Renderer::Render() {
 
 	// Final pass: visualize the point cloud with or without normals, press N to switch
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
 	if (m_showNormals) {
@@ -161,9 +160,12 @@ void Renderer::Render() {
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 	}
 
+
 	glBindVertexArray(m_lineVAO);
 	glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	glBindVertexArray(0);
+
+	RenderText(width, height, fps);
 }
 
 // VAO for the normal lines
@@ -297,6 +299,41 @@ void Renderer::ConfigureFBO()
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/* -------------------------------------------------------------------------
+ *
+ * Helper function to render some additional information in form of text
+ * FPS
+ * Amount of points
+ * Normal information and deviation
+ *
+ * -------------------------------------------------------------------------
+ */
+void Renderer::RenderText(unsigned width, unsigned height, float fps)
+{
+
+	glUseProgram(0); 
+
+	// Set up orthographic projection for 2D screen-space rendering (e.g., text)
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(0, width, height, 0, -1, 1);
+
+	std::stringstream ss;
+
+	ss << "FPS: " << fps << "\nPoints: " << m_pointsAmount;
+	std::string text = ss.str();
+
+	static char buffer[99999];
+	int num_quads = stb_easy_font_print(20, 20, (char*)text.c_str(), NULL, buffer, sizeof(buffer));
+
+	glColor3f(0.0f, 1.0f, 0.0f);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(2, GL_FLOAT, 16, buffer);
+	glDrawArrays(GL_QUADS, 0, num_quads * 4);
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 
