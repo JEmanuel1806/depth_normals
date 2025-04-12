@@ -84,7 +84,6 @@ void Renderer::Start(std::string ply_path) {
 }
 
 /* -------------------------------------------------------------------------
- * Method: render
  *
  * Executes all render passes: depth, normal calculation (if needed),
  * and final point cloud visualization, either with or without normals.
@@ -94,6 +93,18 @@ void Renderer::Start(std::string ply_path) {
 void Renderer::Render(float width, float height, float fps) {
 	glm::mat4 view = m_pCamera->GetViewMatrix();
 	glm::mat4 projection = glm::perspective(glm::radians(m_pCamera->m_zoom), width / height, 0.1f, 100.0f);
+	
+	if (m_spinPointCloudLeft) {
+		angle = angle - 0.05f;
+	}
+	else if (m_spinPointCloudRight) {
+		angle = angle + 0.05f;
+	}
+	else {
+		angle = 0.0f;
+	}
+	
+	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
 
 	// Clear ID texture (used to map screen pixels back to point IDs), default value "-1"
 	GLint clearValue = -1;
@@ -109,6 +120,7 @@ void Renderer::Render(float width, float height, float fps) {
 		m_pShaderDepth->Use(); // use depth_pass shader
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
 		glBindVertexArray(m_VAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
@@ -148,16 +160,33 @@ void Renderer::Render(float width, float height, float fps) {
 	// Final pass: visualize the point cloud with or without normals, press N to switch
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	glEnable(GL_POINT_SMOOTH);
 
 	if (m_showNormals) {
-		m_pShaderPointsNormals->Use(); // use draw_lines shader, for normal visualization
-		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
-		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
-	}
-	else {
-		m_pShaderPointsOnly->Use(); // use draw_points shader, no normal visualization, just point cloud
+		// draw white points
+		m_pShaderPointsOnly->Use();
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glBindVertexArray(m_lineVAO); 
+		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+
+		// draw normal lines
+		m_pShaderPointsNormals->Use();
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glBindVertexArray(m_lineVAO);
+		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+	}
+	else {
+		m_pShaderPointsOnly->Use();
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glBindVertexArray(m_lineVAO);
+		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	}
 
 

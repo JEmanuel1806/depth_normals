@@ -20,6 +20,8 @@ public:
 
     bool m_showNormals = false;
     bool m_showDepthOnly = false;
+    bool m_spinPointCloudRight = false;
+    bool m_spinPointCloudLeft = false;
 
     GLuint m_fbo = 0;
     GLuint m_depthTex = 0;
@@ -46,6 +48,8 @@ private:
 private:
     void ConfigureFBO();
     GLuint SetupLineVAO();
+
+    float angle;
 
     void ReadNormalTexture(std::vector<glm::vec3>& normals);
     void ReadIDTexture(std::vector<int>& ids);

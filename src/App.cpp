@@ -24,8 +24,8 @@ App::App(unsigned int width, unsigned height)
 	
 	renderer_left = new Renderer(camera);
 	renderer_right = new Renderer(camera);
-	renderer_left->Start("data/custom/ground_truth/cube.ply");
-	renderer_right->Start("data/custom/no_normals/cube_no_normals.ply");
+	renderer_left->Start("data/custom/ground_truth/plane.ply");
+	renderer_right->Start("data/custom/no_normals/plane_no_normals.ply");
 
 	run(width, height);
 }
@@ -91,6 +91,25 @@ void App::processInput(GLFWwindow* window)
 	}
 	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
 		key_pressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		renderer_left->m_spinPointCloudLeft = false;
+		renderer_left->m_spinPointCloudRight = true;
+		renderer_right->m_spinPointCloudLeft = false;
+		renderer_right->m_spinPointCloudRight = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		renderer_left->m_spinPointCloudLeft = true;
+		renderer_left->m_spinPointCloudRight = false;
+		renderer_right->m_spinPointCloudLeft = true;
+		renderer_right->m_spinPointCloudRight = false;
+	}
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		renderer_left->m_spinPointCloudLeft = false;
+		renderer_left->m_spinPointCloudRight = false;
+		renderer_right->m_spinPointCloudLeft = false;
+		renderer_right->m_spinPointCloudRight = false;
 	}
 }
 
