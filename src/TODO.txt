@@ -1,0 +1,75 @@
+﻿**ID-Texture (Object ID pro Pixel)**
+
+Wird im G-Buffer-Pass eine ID pro Punkt geschrieben?
+
+Ist der Wert -1 (oder 0) wirklich der Hintergrund?
+
+Wird die ID als float oder als int gespeichert? → Format im glTexImage2D prüfen
+
+Debug-Ausgabe: Ist die ID-Textur richtig befüllt? (z. B. vec4(id / maxID, 0.0, 0.0, 1.0))
+
+Clampst du die Fragmentkoordinaten korrekt (am Rand)?
+
+Verwendest du bei leerem Hintergrund korrekt: if (id == -1.0) discard;?
+
+Depth-Texture
+
+Ist depth == 1.0 bei leerem Hintergrund wirklich gültig? → evtl. if (depth >= 1.0 - 1e-5)
+
+Ist das Depth-Format float32 oder etwas anderes?
+
+Wurde das Depth-Texture per gl_FragDepth geschrieben oder automatisch?
+
+Wird depthTex korrekt als sampler2D deklariert und verwendet?
+
+Rekonstruktion von Positionen
+
+Stimmt die Inverse der Projektionsmatrix?
+
+Funktioniert die NDC-Rechnung?
+ndc = (fragCoord / iResolution) * 2.0 - 1.0
+
+Ist die Tiefe korrekt transformiert?
+ndcDepth = depth * 2.0 - 1.0
+
+Wird clipSpace → viewSpace korrekt berechnet mit / w?
+
+Normalenberechnung (aus Nachbarpixeln)
+
+Wird bei jedem Nachbarpixel geprüft, ob depth == 1.0?
+
+Richtet cross(dpdx, dpdy) die Normale korrekt aus (Richtung)?
+
+Wird normalize() auf das Kreuzprodukt angewendet?
+
+Optional: Debug mit FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+
+Sind Normals im richtigen Raum (View vs. World)? → ggf. mit normalMatrix * normal
+
+Rendering / Shader
+
+Wird der Shader korrekt benutzt / gebunden?
+
+Zeigt FragColor die erwartete Ausgabe?
+
+Wird evtl. mit falschem Framebuffer gerendert?
+
+Optional: Normals ins World-Space umrechnen für korrekten Vergleich
+
+Vergleich mit Blender/PLY
+
+Sind die "echten" Normals aus Blender im World Space exportiert?
+
+Werden beide Seiten im Vergleich gleich dargestellt? (gleicher Raum, gleiche Skalierung)
+
+Linien-Shader: Sind beide gleich visualisiert?
+
+Bonus: Debug-Stufen einbauen
+
+Debug-Modus: Nur Tiefe anzeigen
+
+Debug-Modus: Nur ID anzeigen
+
+Debug-Modus: Normals als RGB-Farbe
+
+Debug-Modus: Normallänge (nur length() als Graustufe)

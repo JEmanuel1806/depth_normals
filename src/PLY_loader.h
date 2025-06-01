@@ -23,5 +23,6 @@ public:
 private:
 	//PointCloud ExtractBinaryData(std::ifstream& ply_file);
 	PointCloud ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order);
+	PointCloud ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order);
 };
 

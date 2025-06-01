@@ -5,8 +5,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-constexpr unsigned int SCREEN_WIDTH = 800;
-constexpr unsigned int SCREEN_HEIGHT = 600;
+constexpr unsigned int SCREEN_WIDTH = 1280;
+constexpr unsigned int SCREEN_HEIGHT = 720;
 
 
 enum CameraMovement {
@@ -30,6 +30,7 @@ public:
 
     void ProcessKeyboard(CameraMovement direction, float fDeltaTime);
     void ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrainPitch = true);
+    void ProcessMousePan(float fXOffset, float fYOffset);
     void ProcessMouseScroll(float fYOffset);
 
 private:

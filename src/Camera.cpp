@@ -71,6 +71,19 @@ void Camera::ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrai
     UpdateCameraVectors();
 }
 
+void Camera::ProcessMousePan(float fXOffset, float fYOffset)
+{
+
+    float panSpeed = 0.005f; // you can tweak this
+
+    glm::vec3 panRight = -m_vecRight * fXOffset * panSpeed;
+    glm::vec3 panUp = m_vecUp * fYOffset * panSpeed;
+
+
+    m_vecPosition += panRight + panUp;
+
+}
+
 void Camera::ProcessMouseScroll(float fYOffset) {
     m_zoom -= fYOffset;
     m_zoom = glm::clamp(m_zoom, 1.0f, 45.0f);

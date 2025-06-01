@@ -13,7 +13,7 @@ public:
     Point()
         : m_pointID(-1),
         m_position(0.0f),
-        m_normal(0.0f, 0.0f, 2.0f),
+        m_normal(0.0f, 0.0f, 0.0f),
         m_color(1.0f) {}
 
     void SetPosition(const glm::vec3& pos);
