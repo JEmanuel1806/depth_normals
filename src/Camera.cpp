@@ -7,7 +7,7 @@
 
 constexpr float DEFAULT_SPEED = 2.5f;
 constexpr float DEFAULT_SENSITIVITY = 0.1f;
-constexpr float DEFAULT_ZOOM = 45.0f;
+constexpr float DEFAULT_ZOOM = 85.0f;
 
 
 Camera::Camera(glm::vec3 vecPosition, glm::vec3 vecUp, float fYaw, float fPitch)
@@ -74,7 +74,7 @@ void Camera::ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrai
 void Camera::ProcessMousePan(float fXOffset, float fYOffset)
 {
 
-    float panSpeed = 0.005f; // you can tweak this
+    float panSpeed = 0.005f; 
 
     glm::vec3 panRight = -m_vecRight * fXOffset * panSpeed;
     glm::vec3 panUp = m_vecUp * fYOffset * panSpeed;

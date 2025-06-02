@@ -427,6 +427,7 @@
     <None Include="includes\glm\gtx\vector_angle.inl" />
     <None Include="includes\glm\gtx\vector_query.inl" />
     <None Include="includes\glm\gtx\wrap.inl" />
+    <None Include="src\shaders\debug_shader.frag" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
     <None Include="src\shaders\draw_lines.frag" />

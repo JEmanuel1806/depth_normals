@@ -1,7 +1,7 @@
 ﻿/* -------------------------------------------------------------------------
  *  Renderer.cpp
  *
- *  This file contains the implementation of the Renderer class responsible
+ *  implementation of the Renderer class responsible
  *  for loading the point cloud, performing multiple rendering passes
  *  (depth, normal calculation, and final visualization), and managing GPU buffers.
  *
