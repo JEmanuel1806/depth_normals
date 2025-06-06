@@ -41,8 +41,8 @@ App::App(unsigned int width, unsigned height)
 	
 	renderer_left = new Renderer(camera);
 	renderer_right = new Renderer(camera);
-	renderer_left->Start("data/custom/ground_truth/plane_intense_normals.ply");
-	renderer_right->Start("data/custom/no_normals/plane_intense_no_normals.ply");
+	renderer_left->Start("data/custom/ground_truth/plane.ply");
+	renderer_right->Start("data/custom/no_normals/plane_no_normals.ply");
 
 	run(width, height);
 }

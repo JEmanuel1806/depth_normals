@@ -103,7 +103,6 @@ vec3 computeNormalTriangle(const sampler2D depthTex, ivec2 p) {
 }
 
 
-
 void main() {
     ivec2 fragCoord = ivec2(gl_FragCoord.xy);
     // vec3 normal = computeNormalNaive(depthTex, fragCoord);
@@ -117,3 +116,4 @@ void main() {
     FragColor = vec4(normal_world * 0.5 + 0.5, 1.0);
     // FragColor = vec4(1.0,1.0,1.0,1.0);
 }
+
