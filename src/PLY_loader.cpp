@@ -13,7 +13,7 @@
  */
 
 PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
-    std::ifstream ply_file(filepath);
+    std::ifstream ply_file(filepath, std::ios::binary); // IMPORTANT: binary mode
     std::string ply_format = "";
     std::vector<std::string> property_order;
 
@@ -36,7 +36,15 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
         else if (keyword == "property") {
             std::string type, name;
             iss >> type >> name;
-            property_order.push_back(name);
+
+            // Skip list types or malformed lines
+            if (type == "list") {
+                std::string list_count_type, list_value_type, list_name;
+                iss >> list_count_type >> list_value_type >> list_name;
+            }
+            else {
+                property_order.push_back(name);
+            }
         }
         else if (keyword == "end_header") {
             break;
@@ -46,9 +54,13 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     if (ply_format == "ascii") {
         return ExtractAsciiData(ply_file, property_order);
     }
-
-    // TODO: binary
-    return {};
+    else if (ply_format == "binary_little_endian") {
+        return ExtractBinaryData(ply_file, property_order);
+    }
+    else {
+        std::cerr << "Unsupported PLY format: " << ply_format << std::endl;
+        return {};
+    }
 }
 
 /*
@@ -97,7 +109,69 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file, const std::vect
         cloud.AddPoint(point);
     }
 
+
+
     std::cerr << "Loaded points: " << cloud.PointsAmount() << std::endl;
 
     return cloud;
 }
+
+PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order) {
+    PointCloud cloud;
+    int id_counter = 0;
+    bool has_nx = false, has_ny = false, has_nz = false;
+
+    while (ply_file.peek() != EOF) {
+        Point point;
+        point.m_pointID = id_counter++;
+        int r = 255, g = 255, b = 255;
+
+        for (const std::string& prop : property_order) {
+            if (prop == "x") {
+                float x; ply_file.read(reinterpret_cast<char*>(&x), sizeof(float));
+                point.m_position.x = x;
+            }
+            else if (prop == "y") {
+                float y; ply_file.read(reinterpret_cast<char*>(&y), sizeof(float));
+                point.m_position.y = y;
+            }
+            else if (prop == "z") {
+                float z; ply_file.read(reinterpret_cast<char*>(&z), sizeof(float));
+                point.m_position.z = z;
+            }
+            else if (prop == "nx") {
+                float nx; ply_file.read(reinterpret_cast<char*>(&nx), sizeof(float));
+                point.m_normal.x = nx; has_nx = true;
+            }
+            else if (prop == "ny") {
+                float ny; ply_file.read(reinterpret_cast<char*>(&ny), sizeof(float));
+                point.m_normal.y = ny; has_ny = true;
+            }
+            else if (prop == "nz") {
+                float nz; ply_file.read(reinterpret_cast<char*>(&nz), sizeof(float));
+                point.m_normal.z = nz; has_nz = true;
+            }
+            else if (prop == "red") {
+                uint8_t c; ply_file.read(reinterpret_cast<char*>(&c), 1); r = c;
+            }
+            else if (prop == "green") {
+                uint8_t c; ply_file.read(reinterpret_cast<char*>(&c), 1); g = c;
+            }
+            else if (prop == "blue") {
+                uint8_t c; ply_file.read(reinterpret_cast<char*>(&c), 1); b = c;
+            }
+            else {
+                // Skip unknown property by type size if needed, or just ignore
+                std::cerr << "Unknown property in binary PLY: " << prop << std::endl;
+            }
+        }
+
+        point.m_color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
+        cloud.AddPoint(point);
+    }
+
+    cloud.m_hasNormals = has_nx && has_ny && has_nz;
+    std::cerr << "Loaded (binary) points: " << cloud.PointsAmount() << std::endl;
+    return cloud;
+}
+

@@ -31,6 +31,7 @@
     <ClCompile Include="src\Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="C:\Users\Admin\Downloads\stb_easy_font.h" />
     <ClInclude Include="includes\glad\glad.h" />
     <ClInclude Include="includes\GLFW\glfw3.h" />
     <ClInclude Include="includes\GLFW\glfw3native.h" />
@@ -292,6 +293,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="C:\Users\Admin\Downloads\wall.ply" />
     <None Include="glew32.dll" />
     <None Include="includes\glm\detail\func_common.inl" />
     <None Include="includes\glm\detail\func_common_simd.inl" />
@@ -425,6 +427,7 @@
     <None Include="includes\glm\gtx\vector_angle.inl" />
     <None Include="includes\glm\gtx\vector_query.inl" />
     <None Include="includes\glm\gtx\wrap.inl" />
+    <None Include="src\shaders\debug_shader.frag" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
     <None Include="src\shaders\draw_lines.frag" />

@@ -7,6 +7,7 @@ in vec3 vPosition[];
 
 uniform mat4 view;
 uniform mat4 proj;
+uniform mat4 model;
 
 float scaleFactor = 0.3;
 
@@ -16,10 +17,10 @@ void main()
     vec3 start = vPosition[0];
     vec3 end = start + normalize(vNormal[0]) * scaleFactor;
 
-    gl_Position = proj * view * vec4(start, 1.0);
+    gl_Position = proj * view * model * vec4(start, 1.0);
     EmitVertex();
 
-    gl_Position = proj * view * vec4(end, 1.0);
+    gl_Position = proj * view * model * vec4(end, 1.0);
     EmitVertex();
 
     EndPrimitive();

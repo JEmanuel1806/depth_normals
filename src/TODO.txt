@@ -1,0 +1,15 @@
+﻿Problems:
+
+only renders once for everything thats in view?
+upper edge broken? (plane)
+other models dont work correctly at all
+do everything on gpu
+performance (10 ms!)
+
+Plan:
+
+Double check the ID texture?
+- add a debug shader
+- render the normal texture to the screen in a separate pass
+
+Doulbe check normal calculation.. obv
