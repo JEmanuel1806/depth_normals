@@ -1,7 +1,7 @@
 #version 440 core
 
 uniform sampler2D depthTex;
-uniform sampler2D idTex;
+uniform isampler2D idTex;
 uniform vec2 iResolution;
 uniform mat4 invProj;
 uniform mat4 view;
@@ -64,6 +64,7 @@ vec3 computeNormalTriangle(const sampler2D depthTex, ivec2 p) {
     vec3 normal = vec3(0.0);
 
     // array of offsets to choose different neighbors (8 in total) for the current point in next step 
+    // buffer to store offset and upload to gpu
     ivec2 offsets[8] = ivec2[8](
         ivec2(-1, -1), 
         ivec2(0, -1), 
@@ -103,6 +104,7 @@ vec3 computeNormalTriangle(const sampler2D depthTex, ivec2 p) {
 }
 
 
+
 void main() {
     ivec2 fragCoord = ivec2(gl_FragCoord.xy);
     // vec3 normal = computeNormalNaive(depthTex, fragCoord);
@@ -113,7 +115,22 @@ void main() {
     mat3 normalMatrix = mat3(transpose(inverse(view)));
     vec3 normal_world = normalize(normalMatrix * normal);
 
-    FragColor = vec4(normal_world * 0.5 + 0.5, 1.0);
+    FragColor = vec4(normal * 0.5 + 0.5, 1.0);
     // FragColor = vec4(1.0,1.0,1.0,1.0);
 }
 
+
+/*
+//Debug stuff 
+void main() {
+ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+int id = texelFetch(idTex, fragCoord, 0).r;
+
+if (id == -1) {
+    FragColor = vec4(0.0, 0.0, 0.0, 1.0); // schwarz
+} else {
+    float hue = float(id % 256) / 255.0;
+    FragColor = vec4(hue, hue * 0.5, 1.0 - hue, 1.0);
+}
+}
+*/

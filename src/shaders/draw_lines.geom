@@ -9,7 +9,9 @@ uniform mat4 view;
 uniform mat4 proj;
 uniform mat4 model;
 
-float scaleFactor = 0.3;
+out vec3 fNormal;
+
+float scaleFactor = 0.2;
 
 // for each point generate a line starting from the point and ending with a scale factor of the normal
 void main()
@@ -17,9 +19,11 @@ void main()
     vec3 start = vPosition[0];
     vec3 end = start + normalize(vNormal[0]) * scaleFactor;
 
+    fNormal = normalize(vNormal[0]);
     gl_Position = proj * view * model * vec4(start, 1.0);
     EmitVertex();
 
+    fNormal = normalize(vNormal[0]);
     gl_Position = proj * view * model * vec4(end, 1.0);
     EmitVertex();
 

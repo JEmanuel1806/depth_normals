@@ -110,6 +110,24 @@ void App::processInput(GLFWwindow* window)
 		key_pressed = false;
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS && !key_pressed) {
+		renderer_left->m_showIDMap = !renderer_left->m_showIDMap;
+		renderer_right->m_showIDMap = !renderer_right->m_showIDMap;
+		key_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_RELEASE) {
+		key_pressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS && !key_pressed) {
+		renderer_left->m_showNormalMap = !renderer_left->m_showNormalMap;
+		renderer_right->m_showNormalMap = !renderer_right->m_showNormalMap;
+		key_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
+		key_pressed = false;
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
 		renderer_left->m_spinPointCloudLeft = false;
 		renderer_left->m_spinPointCloudRight = true;

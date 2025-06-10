@@ -20,6 +20,8 @@ public:
 
          bool m_showNormals = false;
          bool m_showDepthOnly = false;
+         bool m_showIDMap = false;
+         bool m_showNormalMap = false;
          bool m_spinPointCloudRight = false;
          bool m_spinPointCloudLeft = false;
 
@@ -39,6 +41,8 @@ private:
          Shader* m_pShaderPointsOnly = nullptr;
          Shader* m_pShaderCalcNormal = nullptr;
          Shader* m_pShaderPointsNormals = nullptr;
+         Shader* m_pDebugIDTexture = nullptr;
+         Shader* m_pDebugNormalTexture = nullptr;
 
          GLuint m_VAO = 0;
          GLuint m_VBO = 0;

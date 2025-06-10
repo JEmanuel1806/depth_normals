@@ -16,6 +16,8 @@ Renderer::Renderer(Camera* cam) {
 	m_pShaderPointsOnly = nullptr;
 	m_pShaderCalcNormal = nullptr;
 	m_pShaderPointsNormals = nullptr;
+	m_pDebugIDTexture = nullptr;
+	m_pDebugNormalTexture = nullptr;
 	m_VAO = 0;
 	m_VBO = 0;
 }
@@ -25,6 +27,8 @@ Renderer::~Renderer() {
 	delete m_pShaderPointsOnly;
 	delete m_pShaderCalcNormal;
 	delete m_pShaderPointsNormals;
+	delete m_pDebugIDTexture;
+	delete m_pDebugNormalTexture;
 	glDeleteVertexArrays(1, &m_VAO);
 	glDeleteBuffers(1, &m_VBO);
 }
@@ -42,11 +46,17 @@ void Renderer::Start(std::string ply_path) {
 	m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
 	m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
 	m_pShaderPointsNormals = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom", "src/shaders/draw_lines.frag");
+	m_pDebugIDTexture = new Shader("src/shaders/debug/debug_id_tex.vert", "src/shaders/debug/debug_id_tex.frag");
+	m_pDebugNormalTexture = new Shader("src/shaders/debug/debug_normal_tex.vert", "src/shaders/debug/debug_normal_tex.frag");
+
+
 
 	// Load point cloud from PLY file
 	PLY_loader ply_loader;
 	m_pointCloud = ply_loader.LoadPLY(ply_path);
 	m_pointsAmount = m_pointCloud.PointsAmount();
+
+
 
 	glGenVertexArrays(1, &m_VAO);
 	glGenBuffers(1, &m_VBO);
@@ -95,6 +105,8 @@ void Renderer::Render(float width, float height, float fps) {
 	glm::mat4 view = m_pCamera->GetViewMatrix();
 	glm::mat4 projection = glm::perspective(glm::radians(m_pCamera->m_zoom), width / height, 0.1f, 100.0f);
 
+
+	// Just for spinning the pointcloud with arrow keys
 	if (m_spinPointCloudLeft) {
 		angle = angle - 0.05f;
 	}
@@ -111,16 +123,21 @@ void Renderer::Render(float width, float height, float fps) {
 	GLint clearValue = -1;
 	glClearTexImage(m_idTex, 0, GL_RED_INTEGER, GL_INT, &clearValue);
 
+	float zero[3] = { 0.0f, 0.0f, 0.0f };
+	glClearTexImage(m_normalTex, 0, GL_RGB, GL_FLOAT, &zero);
+
+	// if its ground truth (point cloud with normals) dont calculate obv
 	if (!m_pointCloud.m_hasNormals) {
 
-		m_pointCloud.m_hasNormals = false;
-		std::cout << "Calculating.." << std::endl;
+		//m_pointCloud.m_hasNormals = false; //prevent to detect calculated normals as ground truth after entering loop
+		
 
 		// First pass: render point cloud to fill depth and ID textures
 		glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
+		// std::cout << "Calculating.." << std::endl;
 		m_pShaderDepth->Use(); // use depth_pass shader
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -136,7 +153,7 @@ void Renderer::Render(float width, float height, float fps) {
 		glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 
 		m_pShaderCalcNormal->Use(); // use calc_normal shader
-		
+
 
 		GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, attachments);
@@ -154,18 +171,27 @@ void Renderer::Render(float width, float height, float fps) {
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "proj"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "invProj"), 1, GL_FALSE, glm::value_ptr(glm::inverse(projection)));
 
-		
 
+		std::cout << "Drawing " << m_pointsAmount << " points." << std::endl;
 		glBindVertexArray(m_quadVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 
-		// Copy computed normals back to point cloud
+		/*
+		std::cout << "N[0]" << m_pointCloud.GetPointByID(204)->GetNormal().x << ", "
+			<< m_pointCloud.GetPointByID(204)->GetNormal().y
+			<< ", " << m_pointCloud.GetPointByID(204)->GetNormal().z << "\n";
+			*/
+
+			// Copy computed normals back to point cloud
 		AssignNormalsToPointCloud(m_pointCloud);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data());
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		//m_pointCloud.m_hasNormals = true;
+
 	}
 
 	// Final pass: visualize the point cloud with or without normals, press N to switch
@@ -190,6 +216,35 @@ void Renderer::Render(float width, float height, float fps) {
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 		glBindVertexArray(m_lineVAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+
+		if (m_showIDMap == true) {
+			// Debug ID Texture
+			std::cout << "Showing ID Texture" << std::endl;
+			m_pDebugIDTexture->Use();
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, m_idTex);
+			glUniform1i(glGetUniformLocation(m_pDebugIDTexture->m_shaderID, "idTex"), 0);
+
+			// draw fullscreen quad
+			glBindVertexArray(m_quadVAO);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		if (m_showNormalMap == true) {
+			// Debug ID Texture
+			std::cout << "Showing Normal Texture" << std::endl;
+			m_pDebugIDTexture->Use();
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, m_normalTex);
+			glUniform1i(glGetUniformLocation(m_pDebugIDTexture->m_shaderID, "normTex"), 0);
+
+			// draw fullscreen quad
+			glBindVertexArray(m_quadVAO);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+
 	}
 	else {
 		m_pShaderPointsOnly->Use();
@@ -199,7 +254,6 @@ void Renderer::Render(float width, float height, float fps) {
 		glBindVertexArray(m_lineVAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	}
-
 
 	glBindVertexArray(m_lineVAO);
 	glDrawArrays(GL_POINTS, 0, m_pointsAmount);
@@ -313,39 +367,24 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud)
 	ReadNormalTexture(normals);
 	ReadIDTexture(ids);
 
-
+	//std::cout << "Amount of normals read: " << normals.size() << std::endl;
+	//std::cout << "Amount of ids read: " << ids.size() << std::endl;
 
 	for (size_t i = 0; i < normals.size(); ++i) {
 		int id = ids[i];
-
-
-		/*
-		if (normals[i].x != 0)
+		
+		//std::cout << i << std::endl;
+		if(id == 483){
+			std::cout << "ID:" << id << std::endl;
 			std::cout << "normal" << i << ":" << normals[i].x << "//" << normals[i].y << "//" << normals[i].z << "\n";
-		*/
+		}
+
+		
 
 		if (id >= 0 && id < pointCloud.PointsAmount()) {
 			pointCloud.GetPointByID(id)->m_normal = normals[i];
 		}
 	}
-
-
-	// DEBUG
-	/*
-
-
-	for (int i = 0; i < normals.size(); i++)
-	{
-		int id = ids[i];
-
-		if (id >= 0 && id < pointCloud.PointsAmount()) {
-			pointCloud.GetPointByID(id)->m_normal = normals[i];
-		}
-	}
-	*/
-
-
-
 }
 
 /* -------------------------------------------------------------------------

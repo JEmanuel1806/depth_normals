@@ -13,9 +13,11 @@
  */
 
 PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
-    std::ifstream ply_file(filepath, std::ios::binary); // IMPORTANT: binary mode
+    std::ifstream ply_file(filepath, std::ios::binary); 
     std::string ply_format = "";
     std::vector<std::string> property_order;
+
+    int vertices = 0;
 
     if (!ply_file.is_open()) {
         std::cerr << "Could not open file: " << filepath << std::endl;
@@ -24,6 +26,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
 
     std::string line;
     while (std::getline(ply_file, line)) {
+
         std::istringstream iss(line);
         std::string keyword;
         iss >> keyword;
@@ -32,6 +35,14 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
             std::string format;
             iss >> format;
             ply_format = format;
+        }
+        if (keyword == "element") {
+            std::string element_type;
+            iss >> element_type;
+
+            if (element_type == "vertex") {
+                iss >> vertices;
+            }
         }
         else if (keyword == "property") {
             std::string type, name;
@@ -52,10 +63,10 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     }
 
     if (ply_format == "ascii") {
-        return ExtractAsciiData(ply_file, property_order);
+        return ExtractAsciiData(ply_file, property_order, vertices);
     }
     else if (ply_format == "binary_little_endian") {
-        return ExtractBinaryData(ply_file, property_order);
+        return ExtractBinaryData(ply_file, property_order, vertices);
     }
     else {
         std::cerr << "Unsupported PLY format: " << ply_format << std::endl;
@@ -75,13 +86,15 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
  *  - Adds the point to the cloud
  *
  */
-PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order) {
+PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order, int vertices) {
     PointCloud cloud;
     int id_counter = 0;
     std::string line;
     bool has_nx = false, has_ny = false, has_nz = false;
 
-    while (std::getline(ply_file, line)) {
+    std::cout << vertices << std::endl;
+
+    for (int i = 0; i < vertices && std::getline(ply_file, line); i++) {
         std::istringstream iss(line);
         Point point;
         point.m_pointID = id_counter++;
@@ -116,7 +129,7 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file, const std::vect
     return cloud;
 }
 
-PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order) {
+PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order, int vertices) {
     PointCloud cloud;
     int id_counter = 0;
     bool has_nx = false, has_ny = false, has_nz = false;
