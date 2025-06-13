@@ -19,6 +19,7 @@ The system is intended as a preprocessing step for surface reconstruction, with 
 | `F`          | Show/hide camera frustum                    |
 | `ESC`        | Quit application                            |
 
+Or click and drag with mouse.
 ---
 
 ## Input Format
@@ -43,7 +44,8 @@ The system is intended as a preprocessing step for surface reconstruction, with 
 All libraries are included or referenced via `includes/`.
 
 
-![Point cloud rendering with normal visualization](https://github.com/user-attachments/assets/1646ecf5-057c-4413-8e58-e420620feee9)
+![image](https://github.com/user-attachments/assets/0f74af6f-88d8-48a3-a12a-8308282be2d7)
+
 
 ---
 
