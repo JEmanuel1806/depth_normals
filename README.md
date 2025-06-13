@@ -12,7 +12,7 @@ The system is intended as a preprocessing step for surface reconstruction, with 
 |--------------|---------------------------------------------|
 | `W/A/S/D`    | Move camera                                 |
 | `Q/E`        | Rotate camera                               |
-| `Left and Right Arrow`    | Spin point cloud left/right                 |
+| `Left and Right Arrow`    | Spin point cloud left/right    |
 | `N`          | Toggle normal line visualization            |
 | `I`          | Show/hide ID texture                        |
 | `M`          | Show/hide normal texture                    |
@@ -20,6 +20,7 @@ The system is intended as a preprocessing step for surface reconstruction, with 
 | `ESC`        | Quit application                            |
 
 Or click and drag with mouse.
+
 ---
 
 ## Input Format
@@ -51,6 +52,6 @@ All libraries are included or referenced via `includes/`.
 
 ## Goal
 
-This tool provides reliable surface normals for downstream applications such as Poisson Surface Reconstruction, TSDF fusion, or real-time visualization pipelines.
+This tool provides reliable surface normals for downstream applications such as Poisson Surface Reconstruction or real-time visualization pipelines.
 
 ---
