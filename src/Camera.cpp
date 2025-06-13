@@ -30,6 +30,9 @@ glm::mat4 Camera::GetViewMatrix() const {
 
 
 void Camera::ProcessKeyboard(CameraMovement direction, float fDeltaTime) {
+   
+    HasChanged = true; // Register Keyboard to recalculate
+
     float fVelocity = m_movementSpeed * fDeltaTime;
 
     switch (direction) {
@@ -57,6 +60,9 @@ void Camera::ProcessKeyboard(CameraMovement direction, float fDeltaTime) {
 }
 
 void Camera::ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrainPitch) {
+    
+    HasChanged = true; // Register Mouse Movement to recalculate
+    
     fXOffset *= m_mouseSensitivity;
     fYOffset *= m_mouseSensitivity;
 
@@ -74,17 +80,21 @@ void Camera::ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrai
 void Camera::ProcessMousePan(float fXOffset, float fYOffset)
 {
 
+    HasChanged = true;
+
     float panSpeed = 0.005f; 
 
     glm::vec3 panRight = -m_vecRight * fXOffset * panSpeed;
     glm::vec3 panUp = m_vecUp * fYOffset * panSpeed;
-
 
     m_vecPosition += panRight + panUp;
 
 }
 
 void Camera::ProcessMouseScroll(float fYOffset) {
+
+    HasChanged = true;
+
     m_zoom -= fYOffset;
     m_zoom = glm::clamp(m_zoom, 1.0f, 45.0f);
 }

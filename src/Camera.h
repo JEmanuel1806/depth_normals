@@ -33,6 +33,8 @@ public:
     void ProcessMousePan(float fXOffset, float fYOffset);
     void ProcessMouseScroll(float fYOffset);
 
+    bool HasChanged = false;
+
 private:
     void UpdateCameraVectors();
 

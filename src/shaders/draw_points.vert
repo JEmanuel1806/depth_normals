@@ -7,10 +7,12 @@ uniform mat4 view;
 uniform mat4 proj;
 uniform mat4 model;
 
+uniform float pointSize;
+
 out vec3 vColor;
 
 void main(){
 	gl_Position = proj * view * model * vec4(aPos, 1.0);
-	gl_PointSize = 1.0;
+	gl_PointSize = pointSize;
 	vColor = aColor;
 }
