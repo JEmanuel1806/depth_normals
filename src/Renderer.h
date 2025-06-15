@@ -15,8 +15,8 @@ public:
          Renderer(Camera* pCamera);
          ~Renderer();
 
-         void Start(std::string ply_path);
-         void Render(float width, float height,float fps);
+         void Start(std::string ply_path, unsigned int width, unsigned int height);
+         void Render(float fps);
 
          bool m_showNormals = false;
          bool m_showDepthOnly = false;
@@ -37,11 +37,16 @@ public:
          size_t m_pointsAmount = 0;
 
          float pointSize = 1.0f;
+         float m_zNear = 0.1f;
+         float m_zFar = 100.0f;
 
 private:
          Camera* m_pCamera = nullptr;
 
          PointCloud m_pointCloud;
+
+         unsigned int m_height;
+         unsigned int m_width;
 
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
@@ -68,5 +73,5 @@ private:
          void ReadNormalTexture(std::vector<glm::vec3>& normals);
          void ReadIDTexture(std::vector<int>& ids);
          void AssignNormalsToPointCloud(PointCloud& pointCloud);
-         void RenderText(unsigned width, unsigned heigth, float fps, PointCloud pc);
+         void RenderText(float fps, PointCloud pc);
 };

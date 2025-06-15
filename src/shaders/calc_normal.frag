@@ -6,6 +6,9 @@ uniform vec2 iResolution;
 uniform mat4 invProj;
 uniform mat4 view;
 
+uniform float zNear;
+uniform float zFar;
+
 in vec2 texCoords;
 
 layout(location = 0) out vec4 FragColor;
@@ -59,60 +62,48 @@ vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
  * it forms a triangle and accumulates the cross product. The final normal is
  * the normalized sum of all triangle normals.
  */
-vec3 computeNormalTriangle(const sampler2D depthTex, ivec2 p) {
-    // discard current pixel if depth == 1.0 
+vec3 computeNormalTriangleWeighted(const sampler2D depthTex, ivec2 p) {
     float centerDepth = texelFetch(depthTex, p, 0).r;
     if (centerDepth == 1.0) discard;
 
-    vec3 centerPos = getPos(p, linearizeDepth(centerDepth, 0.1, 100.0));
+    vec3 centerPos = getPos(p, linearizeDepth(centerDepth, zNear, zFar));
     vec3 normal = vec3(0.0);
+    float totalWeight = 0.0;
 
-    // array of offsets to choose different neighbors (8 in total) for the current point in next step 
-    // buffer to store offset and upload to gpu
     ivec2 offsets[8] = ivec2[8](
-        ivec2(-1, -1), 
-        ivec2(0, -1), 
-        ivec2(1, -1),
-        ivec2(-1,  0),               
-        ivec2(1,  0),
-        ivec2(-1,  1), 
-        ivec2(0,  1), 
-        ivec2(1,  1)
+        ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+        ivec2(-1,  0),               ivec2(1,  0),
+        ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)
     );
 
-    // form triangles around the center 
-    for (int i = 0; i < offsets.length(); i++) {
-        // get position of two neighboring points
-        // clamp between 0 and maximum textureSize to stay in boundary of texture
+    for (int i = 0; i < 8; ++i) {
         ivec2 p1 = clamp(p + offsets[i], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
         ivec2 p2 = clamp(p + offsets[(i + 1) % 8], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
 
-        // get depth of the two chosen points
-        float d1 = linearizeDepth(texelFetch(depthTex, p1, 0).r ,0.1, 100.0);
-        float d2 = linearizeDepth(texelFetch(depthTex, p2, 0).r ,0.1, 100.0);
+        float d1 = linearizeDepth(texelFetch(depthTex, p1, 0).r, zNear, zFar);
+        float d2 = linearizeDepth(texelFetch(depthTex, p2, 0).r, zNear, zFar);
+        if (d1 == 1.0 || d2 == 1.0) continue;
 
-        // skip if background
-        //if (d1 == 1.0 || d2 == 1.0) continue; 
-
-        // reconstruct position of neighbors
         vec3 v1 = getPos(p1, d1);
         vec3 v2 = getPos(p2, d2);
 
-        // calculate normal of the formed triangle and store it
-        vec3 triNormal = cross(v2 - centerPos, v1 - centerPos );      
-        normal += triNormal;
-        
+        vec3 triNormal = cross(v2 - centerPos, v1 - centerPos);
+        float weight = length(triNormal); // triangle area approximation
+
+        normal += normalize(triNormal) * weight;
+        totalWeight += weight;
     }
-    //  direction of sum
-    return normalize(normal);
+
+    if (totalWeight == 0.0) discard;
+
+    return normalize(normal / totalWeight);
 }
 
 
 
 void main() {
     ivec2 fragCoord = ivec2(gl_FragCoord.xy);
-     //vec3 normal = computeNormalNaive(depthTex, fragCoord);
-     vec3 normal = computeNormalTriangle(depthTex, fragCoord);
+     vec3 normal = computeNormalTriangleWeighted(depthTex, fragCoord);
 
     
     //convert to world space
@@ -120,5 +111,4 @@ void main() {
     vec3 normal_world = normalize(normalMatrix * normal);
 
     FragColor = vec4(normal_world * 0.5 + 0.5, 1.0);
-    // FragColor = vec4(1.0,1.0,1.0,1.0);
 }

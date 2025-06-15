@@ -51,7 +51,7 @@ Renderer::~Renderer() {
  * configures vertex attributes and framebuffers.
  * -------------------------------------------------------------------------
  */
-void Renderer::Start(std::string ply_path) {
+void Renderer::Start(std::string ply_path, unsigned int width, unsigned int height) {
     // Load and compile shaders for various render passes
     m_pShaderDepth = new Shader("src/shaders/depth_pass.vert", "src/shaders/depth_pass.frag");
     m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
@@ -63,6 +63,9 @@ void Renderer::Start(std::string ply_path) {
     m_pDebugNormalTexture = new Shader("src/shaders/debug/debug_normal_tex.vert",
         "src/shaders/debug/debug_normal_tex.frag");
     m_pDrawFrustum = new Shader("src/shaders/draw_frustum.vert", "src/shaders/draw_frustum.frag");
+
+    m_width = width;
+    m_height = height;
 
     // Load point cloud from PLY file
     PLY_loader ply_loader;
@@ -92,17 +95,17 @@ void Renderer::Start(std::string ply_path) {
     m_quadVAO = SetupQuadVAO();
     // for FRUSTUM
     glm::mat4 projection =
-        glm::perspective(glm::radians(m_pCamera->m_zoom), 1280.0f / 720.0f, 0.1f, 100.0f);
+        glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
     m_frustumVAO = SetupFrustumVAO(projection, m_pCamera->GetViewMatrix());
+    
     ConfigureFBO();
-
     GLint currentFB;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFB);
     std::cout << "Current framebuffer: " << currentFB << std::endl;
 
     if (m_pointCloud.m_hasNormals) {
         std::cout << "Normals detected. Skip normal calculation..." << std::endl;
-        expectedNormal = m_pointCloud.GetNormalByID(100);
+        expectedNormal = m_pointCloud.GetNormalByID(1);
         std::cout << "Expected Normal for ID: " << 1 << " : " << glm::to_string(expectedNormal)
             << std::endl;
     }
@@ -121,10 +124,10 @@ void Renderer::Start(std::string ply_path) {
  *
  * -------------------------------------------------------------------------
  */
-void Renderer::Render(float width, float height, float fps) {
+void Renderer::Render(float fps) {
     glm::mat4 view = m_pCamera->GetViewMatrix();
     glm::mat4 projection =
-        glm::perspective(glm::radians(m_pCamera->m_zoom), width / height, 0.1f, 100.0f);
+        glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
 
     // Just for spinning the pointcloud with arrow keys
     if (m_spinPointCloudLeft) {
@@ -148,17 +151,14 @@ void Renderer::Render(float width, float height, float fps) {
     glClearTexImage(m_normalTex, 0, GL_RGB, GL_FLOAT, &zero);
 
     // if its ground truth (point cloud with normals) dont calculate obv
-    // Only calculate if a cam movement happened
-    if (!m_pointCloud.m_hasNormals && m_pCamera->HasChanged && m_recalculate) {
-        // m_pointCloud.m_hasNormals = false; //prevent to detect calculated normals
-        // as ground truth after entering loop
+    // Only calculate if a cam movement happened and if "TAB" is pressed (=Recalculate on) to prevent LAG
+    if (!m_pointCloud.m_hasNormals &&  m_recalculate) {
 
         // First pass: render point cloud to fill depth and ID textures
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
-        // std::cout << "Calculating.." << std::endl;
         m_pShaderDepth->Use();  // use depth_pass shader
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
@@ -167,16 +167,17 @@ void Renderer::Render(float width, float height, float fps) {
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
             glm::value_ptr(model));
         glUniform1f(glGetUniformLocation(m_pShaderDepth->m_shaderID, "pointSize"), pointSize);
+        
 
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
         glBindVertexArray(0);
 
-        // Second pass: compute normals from depth buffer, download data and store
-        // it in the pointcloud
+        // Second pass: compute normals from depth buffer, download data and store it in the pointcloud
 
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+       
 
         m_pShaderCalcNormal->Use();  // use calc_normal shader
 
@@ -191,16 +192,18 @@ void Renderer::Render(float width, float height, float fps) {
         glBindTexture(GL_TEXTURE_2D, m_idTex);
         glUniform1i(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "idTex"), 1);
 
-        glUniform2f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "iResolution"), SCREEN_WIDTH,
-            SCREEN_HEIGHT);
+        glUniform2f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "iResolution"), m_width,
+            m_height);
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "proj"), 1, GL_FALSE,
             glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "invProj"), 1,
             GL_FALSE, glm::value_ptr(glm::inverse(projection)));
+        glUniform1f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "zNear"), m_zNear);
+        glUniform1f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "zFar"), m_zFar);
 
-        std::cout << "(Re)calculating normals for " << m_pointsAmount << " points." << std::endl;
+        std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
         glBindVertexArray(m_quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
@@ -234,7 +237,7 @@ void Renderer::Render(float width, float height, float fps) {
             glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
             glm::value_ptr(model));
-        glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), 1.0f);
+        glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), pointSize);
         glBindVertexArray(m_lineVAO);
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 
@@ -265,7 +268,7 @@ void Renderer::Render(float width, float height, float fps) {
 
         if (m_showFrustum == true) {
             // Show Viewing Frustum
-            std::cout << "Showing View Frustum" << std::endl;
+            
             m_pDrawFrustum->Use();
 
             glUniformMatrix4fv(glGetUniformLocation(m_pDrawFrustum->m_shaderID, "view"), 1, GL_FALSE,
@@ -279,12 +282,12 @@ void Renderer::Render(float width, float height, float fps) {
         // doesnt work
         if (m_showNormalMap == true) {
             // Debug ID Texture
-            std::cout << "Showing Normal Texture" << std::endl;
-            m_pDebugIDTexture->Use();
+           
+            m_pDebugNormalTexture->Use();
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_normalTex);
-            glUniform1i(glGetUniformLocation(m_pDebugIDTexture->m_shaderID, "normTex"), 0);
+            glUniform1i(glGetUniformLocation(m_pDebugNormalTexture->m_shaderID, "normTex"), 0);
 
             // draw fullscreen quad
             glBindVertexArray(m_quadVAO);
@@ -300,7 +303,7 @@ void Renderer::Render(float width, float height, float fps) {
             glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
             glm::value_ptr(model));
-        glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), 1.0f);
+        glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), pointSize);
         glBindVertexArray(m_lineVAO);
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
     }
@@ -309,7 +312,7 @@ void Renderer::Render(float width, float height, float fps) {
     glDrawArrays(GL_POINTS, 0, m_pointsAmount);
     glBindVertexArray(0);
 
-    RenderText(width, height, fps, m_pointCloud);
+    RenderText(fps, m_pointCloud);
 }
 
 // VAO for the normal lines
@@ -413,7 +416,7 @@ GLuint Renderer::SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& v
 
 void Renderer::ReadNormalTexture(std::vector<glm::vec3>& normals) {
     glBindTexture(GL_TEXTURE_2D, m_normalTex);
-    normals.resize(SCREEN_WIDTH * SCREEN_HEIGHT);
+    normals.resize(m_width * m_height);
 
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, normals.data());
 
@@ -422,7 +425,7 @@ void Renderer::ReadNormalTexture(std::vector<glm::vec3>& normals) {
 
 void Renderer::ReadIDTexture(std::vector<int>& ids) {
     glBindTexture(GL_TEXTURE_2D, m_idTex);
-    ids.resize(SCREEN_WIDTH * SCREEN_HEIGHT);
+    ids.resize(m_width * m_height);
 
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_INT, ids.data());
 
@@ -468,9 +471,9 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
         for (auto& pair : normalsById) {
             glm::vec3 sumVector(0.0f);
 
-            if (pair.first == 100) {
+            if (pair.first > 0) {
                 for (auto normal : pair.second)
-                    std::cout << "Normal:" << normal.x << "/" << normal.y << "/" << normal.z << ".\n";
+                    std::cout << "Normal(:" << pair.first << "):" << normal.x << "/" << normal.y << "/" << normal.z << ".\n";
             }
 
             for (const auto& normal : pair.second) {
@@ -479,9 +482,9 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
 
             glm::vec3 average = sumVector / static_cast<float>(pair.second.size());
 
-            if (pair.first == 100) {
-                std::cout << "ID 100 hat " << pair.second.size() << " Fragmente.\n";
-                std::cout << "Calculated Avg Normal: " << glm::to_string(average) << "\n";
+            if (pair.first > 0) {
+                std::cout << "ID " << pair.first << " has " << pair.second.size() << " fragments.\n";
+                std::cout << "Calculated Avg Normal(" << pair.first << "):" << glm::to_string(average) << "\n";
             }
 
             if (pair.first >= 0 && pair.first < pointCloud.PointsAmount()) {
@@ -515,7 +518,7 @@ void Renderer::ConfigureFBO() {
     // depth tex
     glGenTextures(1, &m_depthTex);
     glBindTexture(GL_TEXTURE_2D, m_depthTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SCREEN_WIDTH, SCREEN_HEIGHT, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, m_width, m_height, 0,
         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -526,7 +529,7 @@ void Renderer::ConfigureFBO() {
     // normal map
     glGenTextures(1, &m_normalTex);
     glBindTexture(GL_TEXTURE_2D, m_normalTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, m_width, m_height, 0, GL_RGB, GL_FLOAT,
         nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -535,7 +538,7 @@ void Renderer::ConfigureFBO() {
     // ID texture, for storing IDs for each Point of the Pointcloud
     glGenTextures(1, &m_idTex);
     glBindTexture(GL_TEXTURE_2D, m_idTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32I, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RED_INTEGER, GL_INT,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32I, m_width, m_height, 0, GL_RED_INTEGER, GL_INT,
         nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -564,21 +567,21 @@ void Renderer::ConfigureFBO() {
  *
  * -------------------------------------------------------------------------
  */
-void Renderer::RenderText(unsigned width, unsigned height, float fps, PointCloud pc ) {
+void Renderer::RenderText(float fps, PointCloud pc ) {
     glUseProgram(0);
 
     // Set up orthographic projection for 2D screen-space rendering (e.g., text)
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    glOrtho(0, width, height, 0, -1, 1);
+    glOrtho(0, m_width, m_height, 0, -1, 1);
 
     std::stringstream ss;
 
     ss << "FPS: " << fps
         << "\nPoints: " << m_pointsAmount
         << "\nPoint Size: " << pointSize
-        << "\nNormal (Point 100): " << glm::to_string(pc.GetNormalByID(100));
+        << "\nNormal (Point 1): " << glm::to_string(pc.GetNormalByID(1));
     std::string text = ss.str();
 
     static char buffer[99999];
@@ -589,4 +592,5 @@ void Renderer::RenderText(unsigned width, unsigned height, float fps, PointCloud
     glVertexPointer(2, GL_FLOAT, 16, buffer);
     glDrawArrays(GL_QUADS, 0, num_quads * 4);
     glDisableClientState(GL_VERTEX_ARRAY);
+    glPopMatrix();
 }

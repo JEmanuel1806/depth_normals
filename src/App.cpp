@@ -1,6 +1,20 @@
 #include "App.h"
 
-App::App(unsigned int width, unsigned height) {
+
+// Debug output for debugging (obv)
+void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+    GLsizei length, const GLchar* message, const void* userParam) {
+    std::cerr << "[OpenGL DEBUG] " << message << std::endl;
+
+    if (severity == GL_DEBUG_SEVERITY_HIGH)
+        std::cerr << "Severity: HIGH\n";
+    else if (severity == GL_DEBUG_SEVERITY_MEDIUM)
+        std::cerr << "Severity: MEDIUM\n";
+    else if (severity == GL_DEBUG_SEVERITY_LOW)
+        std::cerr << "Severity: LOW\n";
+}
+
+App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         exit(-1);
@@ -19,6 +33,11 @@ App::App(unsigned int width, unsigned height) {
         exit(-1);
     }
 
+    // DEBUG OUTPUT
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(DebugCallback, nullptr);
+
     glfwSetWindowUserPointer(window, this);
     glfwSetCursorPosCallback(window, [](GLFWwindow* win, double xpos, double ypos) {
         static_cast<App*>(glfwGetWindowUserPointer(win))->mouse_callback(win, xpos, ypos);
@@ -35,10 +54,8 @@ App::App(unsigned int width, unsigned height) {
     renderer_left = new Renderer(camera);
     renderer_right = new Renderer(camera);
 
-    renderer_left->Start("data/custom/ground_truth/plane.ply");
-    renderer_right->Start("data/custom/no_normals/plane_no_normals.ply");
-
-    run(width, height);
+    renderer_left->Start("data/custom/ground_truth/plane_sparse.ply", width/2, height);
+    renderer_right->Start("data/custom/no_normals/plane_sparse_no_normals.ply", width/2, height);
 }
 
 App::~App() {
@@ -49,7 +66,7 @@ App::~App() {
     glfwTerminate();
 }
 
-void App::run(unsigned int width, unsigned int height) {
+void App::run() {
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -59,12 +76,16 @@ void App::run(unsigned int width, unsigned int height) {
         processInput();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+       
+        int viewportWidth = width / 2;
 
-        glViewport(0, 0, width / 2, height);
-        renderer_left->Render(width / 2.0f, height, fps);
+        // left viewport
+        glViewport(0, 0, viewportWidth, height);
+        renderer_left->Render(fps);
 
-        glViewport(width / 2, 0, width / 2, height);
-        renderer_right->Render(width / 2.0f, height, fps);
+        // right viewport
+        glViewport(viewportWidth, 0, viewportWidth, height);
+        renderer_right->Render(fps);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
