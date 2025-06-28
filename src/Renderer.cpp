@@ -197,6 +197,8 @@ void Renderer::Render(float fps) {
             m_height);
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "InvView"), 1, GL_FALSE,
+            glm::value_ptr(glm::inverse(view)));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "proj"), 1, GL_FALSE,
             glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "invProj"), 1,
@@ -447,7 +449,7 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
     std::vector<glm::vec3> normals;
     std::vector<int> ids;
 
-    bool averaging = false;
+    bool averaging = true;
 
     ReadNormalTexture(normals);
     ReadIDTexture(ids);
@@ -500,9 +502,6 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
 
             if (id >= 0 && id < pointCloud.PointsAmount()) {
                 pointCloud.GetPointByID(id)->m_normal = normals[i];
-            }
-            else {
-                std::cout << "no valid id! id:" << id << "\n";
             }
         }
     }

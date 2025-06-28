@@ -54,8 +54,8 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer_left = new Renderer(camera);
     renderer_right = new Renderer(camera);
 
-    renderer_left->Start("data/custom/ground_truth/plane_intense.ply", width/2, height);
-    renderer_right->Start("data/custom/no_normals/plane_intense_no_normals.ply", width/2, height);
+    renderer_left->Start("data/custom/no_normals/plane_sparse_no_normals.ply", width/2, height);
+    renderer_right->Start("data/custom/ground_truth/plane_sparse.ply", width/2, height);
 }
 
 App::~App() {
@@ -142,7 +142,7 @@ void App::processInput() {
     toggle(GLFW_KEY_F, renderer_left->m_showFrustum);
     renderer_right->m_showFrustum = renderer_left->m_showFrustum;
 
-    toggle(GLFW_KEY_TAB, renderer_right->m_recalculate = false);
+    toggle(GLFW_KEY_TAB, renderer_left->m_recalculate = false);
 
     // rotation
     bool left = isPressed(GLFW_KEY_LEFT);
