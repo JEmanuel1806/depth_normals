@@ -148,11 +148,12 @@ void Renderer::Render(float fps) {
     // glClearTexImage(m_idTex, 0, GL_RED_INTEGER, GL_INT, &clearValue);
 
     float zero[3] = { 0.0f, 0.0f, 0.0f };
+    glClearColor(0.141f, 0.149f, 0.192f, 1.0f);
     glClearTexImage(m_normalTex, 0, GL_RGB, GL_FLOAT, &zero);
 
     // if its ground truth (point cloud with normals) dont calculate obv
     // Only calculate if a cam movement happened and if "TAB" is pressed (=Recalculate on) to prevent LAG
-    if (!m_pointCloud.m_hasNormals &&  m_recalculate) {
+    if (!m_pointCloud.m_hasNormals && m_recalculate) {
 
         // First pass: render point cloud to fill depth and ID textures
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
@@ -178,7 +179,6 @@ void Renderer::Render(float fps) {
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
        
-
         m_pShaderCalcNormal->Use();  // use calc_normal shader
 
         GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
@@ -446,7 +446,7 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
     std::vector<glm::vec3> normals;
     std::vector<int> ids;
 
-    bool averaging = true;
+    bool averaging = false;
 
     ReadNormalTexture(normals);
     ReadIDTexture(ids);
