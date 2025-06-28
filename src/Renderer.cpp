@@ -475,8 +475,8 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
             glm::vec3 sumVector(0.0f);
 
             if (pair.first > 0) {
-                for (auto normal : pair.second)
-                    std::cout << "Normal(:" << pair.first << "):" << normal.x << "/" << normal.y << "/" << normal.z << ".\n";
+                //for (auto normal : pair.second)
+                    //std::cout << "Normal(:" << pair.first << "):" << normal.x << "/" << normal.y << "/" << normal.z << ".\n";
             }
 
             for (const auto& normal : pair.second) {
@@ -486,8 +486,8 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
             glm::vec3 average = sumVector / static_cast<float>(pair.second.size());
 
             if (pair.first > 0) {
-                std::cout << "ID " << pair.first << " has " << pair.second.size() << " fragments.\n";
-                std::cout << "Calculated Avg Normal(" << pair.first << "):" << glm::to_string(average) << "\n";
+                //std::cout << "ID " << pair.first << " has " << pair.second.size() << " fragments.\n";
+                //std::cout << "Calculated Avg Normal(" << pair.first << "):" << glm::to_string(average) << "\n";
             }
 
             if (pair.first >= 0 && pair.first < pointCloud.PointsAmount()) {
