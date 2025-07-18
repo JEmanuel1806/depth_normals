@@ -55,7 +55,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer_right = new Renderer(camera);
 
     // calculation
-    renderer_left->Start("data/custom/no_normals/tianfang_1.fbx.ply", width/2, height);
+    renderer_left->Start("data/custom/no_normals/plane_sparse_no_normals.ply", width/2, height);
 
     // ground truth
     renderer_right->Start("data/custom/ground_truth/plane_sparse.ply", width/2, height);
