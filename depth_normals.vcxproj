@@ -293,7 +293,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
-    <None Include="C:\Users\Admin\Downloads\wall.ply" />
     <None Include="glew32.dll" />
     <None Include="includes\glm\detail\func_common.inl" />
     <None Include="includes\glm\detail\func_common_simd.inl" />
@@ -427,9 +426,13 @@
     <None Include="includes\glm\gtx\vector_angle.inl" />
     <None Include="includes\glm\gtx\vector_query.inl" />
     <None Include="includes\glm\gtx\wrap.inl" />
-    <None Include="src\shaders\debug_shader.frag" />
+    <None Include="src\shaders\debug\debug_id_tex.vert" />
+    <None Include="src\shaders\debug\debug_normal_tex.frag" />
+    <None Include="src\shaders\debug\debug_normal_tex.vert" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
+    <None Include="src\shaders\draw_frustum.frag" />
+    <None Include="src\shaders\draw_frustum.vert" />
     <None Include="src\shaders\draw_lines.frag" />
     <None Include="src\shaders\draw_lines.geom" />
     <None Include="src\shaders\draw_lines.vert" />
@@ -500,6 +503,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -532,6 +536,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

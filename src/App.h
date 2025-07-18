@@ -19,6 +19,8 @@ class App {
 
 public:
 
+	unsigned int width, height;
+
 	Camera* camera;
 
 	float deltaTime = 0.0f;
@@ -27,14 +29,13 @@ public:
 	bool key_pressed = false;
 	bool left_mouse_pressed = false;
 	bool right_mouse_pressed = false;
-	float lastX = SCREEN_WIDTH / 2.0f;
-	float lastY = SCREEN_HEIGHT / 2.0f;
+	float lastX = width /2 ;
+	float lastY = height;
 	
-
-	App(unsigned int width, unsigned height);
+	App(unsigned int w, unsigned int h);
 	~App();
-	void run(unsigned int width, unsigned int height);
-	void processInput(GLFWwindow* window);
+	void run();
+	void processInput();
 	void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 	void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
