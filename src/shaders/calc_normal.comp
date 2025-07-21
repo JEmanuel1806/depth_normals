@@ -1,138 +1,123 @@
-#version 440 core 
+#version 440
 
-layout(local_size_x = 16, local_size_y = 16) in; // size of the local invocations per dimension
+layout(local_size_x = 8, local_size_y = 8) in;
 
+layout(r32i, binding = 0) uniform iimage2D idTex;
+layout(rgba32f, binding = 1) uniform image2D normalTex;
 uniform sampler2D depthTex;
-uniform isampler2D idTex;
-uniform vec2 iResolution;
+
+uniform ivec2 screenSize;
+uniform mat4 proj;
 uniform mat4 invProj;
 uniform mat4 view;
 
-uniform float zNear;
-uniform float zFar;
-uniform int numPoints;
-
-layout(std430, binding = 0) buffer NormalBuffer 
-{
-	vec4 normals[];
-};
-
-layout(std430, binding = 1) buffer NormalCountBuffer 
-{
-	uint normalCount[];
-};
+uniform mat4 invView;
 
 vec3 getPos(ivec2 fragCoord, float depth) {
-    
-    //if (depth == 1.0) return vec3(0.0); // background
-    
-    float id = texelFetch(idTex, fragCoord, 0).r;
-    //if (id == -1) discard; // background
-
-    vec2 ndc = (vec2(fragCoord) / iResolution) * 2.0 - 1.0;
-    float ndcDepth = depth * 2.0 - 1.0; 
+        
+    vec2 ndc = (vec2(fragCoord) / screenSize) * 2.0 - 1.0;
+    float ndcDepth = depth * 2.0 - 1.0; // - 1 to 1
     
     vec4 clipSpace = vec4(ndc, ndcDepth, 1.0);
     vec4 viewSpace = invProj * clipSpace;
     viewSpace /= viewSpace.w;
-    return viewSpace.xyz;
+
+    vec4 worldSpace = invView * viewSpace;
+    return worldSpace.xyz;
 }
-
-// linearize depth because depth buffer precision
-float linearizeDepth(float z, float near, float far) {
-    float ndc = z * 2.0 - 1.0;
-    return (2.0 * near * far) / (far + near - ndc * (far - near));
-}
-
-// will be legacy
-vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
-    ivec2 left   = clamp(p - ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 right  = clamp(p + ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 top    = clamp(p + ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 bottom = clamp(p - ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-
-    float dCenter = linearizeDepth(texelFetch(depthTex, p, 0).r, 0.1, 100);
-
-    vec3 l1 = getPos(left,   linearizeDepth(texelFetch(depthTex, left,   0).r, 0.1, 100));
-    vec3 r1 = getPos(right,  linearizeDepth(texelFetch(depthTex, right,  0).r, 0.1, 100));
-    vec3 t1 = getPos(top,    linearizeDepth(texelFetch(depthTex, top,    0).r, 0.1, 100));
-    vec3 b1 = getPos(bottom, linearizeDepth(texelFetch(depthTex, bottom, 0).r ,0.1, 100));
-
-    vec3 dpdx = l1 - r1;
-    vec3 dpdy = t1 - b1;
-
-    return normalize(cross(dpdx, dpdy));
-}
-
-/*
- * Computes a surface normal for a fragment using a triangle fan of neighbors
- * in the depth buffer. For each pair of neighboring points around the center,
- * it forms a triangle and accumulates the cross product. The final normal is
- * the normalized sum of all triangle normals.
- */
-vec3 computeNormalTriangleWeighted(const sampler2D depthTex, ivec2 p) {
-    float centerDepth = texelFetch(depthTex, p, 0).r;
-
-    vec3 centerPos = getPos(p, linearizeDepth(centerDepth, zNear, zFar));
-    vec3 normal = vec3(0.0);
-    float totalWeight = 0.0;
-
-    ivec2 offsets[8] = ivec2[8](
-        ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
-        ivec2(-1,  0),               ivec2(1,  0),
-        ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)
-    );
-
-    for (int i = 0; i < 8; ++i) {
-        ivec2 p1 = clamp(p + offsets[i], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-        ivec2 p2 = clamp(p + offsets[(i + 1) % 8], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-
-        float d1 = linearizeDepth(texelFetch(depthTex, p1, 0).r, zNear, zFar);
-        float d2 = linearizeDepth(texelFetch(depthTex, p2, 0).r, zNear, zFar);
-        if (d1 == 1.0 || d2 == 1.0) continue;
-
-        vec3 v1 = getPos(p1, d1);
-        vec3 v2 = getPos(p2, d2);
-
-        vec3 triNormal = cross(v2 - centerPos, v1 - centerPos);
-        float weight = length(triNormal); // triangle area approximation
-
-        normal += normalize(triNormal) * weight;
-        totalWeight += weight;
-    }
-
-    return normalize(normal / totalWeight);
-}
-
-vec3 debug_show_depth(const sampler2D depthTex, ivec2 p) {
-    
-    ivec2 left   = clamp(p - ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 right  = clamp(p + ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 top    = clamp(p + ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 bottom = clamp(p - ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    
-    float depthLeft = texelFetch(depthTex, left, 0).r;
-    float depthRight = texelFetch(depthTex, right, 0).r;
-    float depthTop = texelFetch(depthTex, top, 0).r;
-    float depthBottom = texelFetch(depthTex, top, 0).r;
-
-    return vec3 (depthLeft, depthRight, depthTop);
-}
-
 
 void main() {
-    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
-    vec3 normal = computeNormalNaive(depthTex, fragCoord);
-
-    mat3 normalMatrix = mat3(transpose(inverse(view)));
-    vec3 normal_world = normalize(normalMatrix * normal);
-
-    int pointID = texelFetch(idTex, fragCoord, 0).r;
-
-    if (pointID < 0 || pointID >= numPoints)
+    ivec2 pixelPos = ivec2(gl_GlobalInvocationID.xy);
+    if (pixelPos.x >= screenSize.x || pixelPos.y >= screenSize.y)
         return;
 
-    uint count = atomicAdd(normalCount[pointID], 1);
-    normals[pointID] += vec4(normal_world, 0.0);
-}
+    int myID = imageLoad(idTex, pixelPos).r;
+    float myDepth = texelFetch(depthTex, pixelPos, 0).r;
+    if (myID < -1) 
+        return;
 
+    vec3 l, r, u, d;
+    float debugL, debugR, debugU, debugD = -1;
+
+    bool foundL = false, foundR = false, foundU = false, foundD = false;
+
+    for (int offset = 1; offset < 50; ++offset) {
+        // Left
+        if (!foundL) {
+            ivec2 neighborL = pixelPos + ivec2(-offset, 0);
+            if (neighborL.x >= 0) {
+                int idL = imageLoad(idTex, neighborL).r;
+                float dL = texelFetch(depthTex, neighborL, 0).r;
+                if (idL > -1 && idL != myID) {
+                    l = getPos(neighborL, dL);
+                    debugL = dL;
+                    foundL = true;
+                }
+            }
+        }
+
+        // Right
+        if (!foundR) {
+            ivec2 neighborR = pixelPos + ivec2(offset, 0);
+            if (neighborR.x < screenSize.x) {
+                int idR = imageLoad(idTex, neighborR).r;
+                float dR = texelFetch(depthTex, neighborR, 0).r;
+                if (idR > -1 && idR != myID) {
+                    r = getPos(neighborR, dR);
+                    debugR = dR;
+                    foundR = true;
+                }
+            }
+        }
+
+        // Up
+        if (!foundU) {
+            ivec2 neighborU = pixelPos + ivec2(0, offset);
+            if (neighborU.y < screenSize.y) {
+                int idU = imageLoad(idTex, neighborU).r;
+                float dU = texelFetch(depthTex, neighborU, 0).r;
+                if (idU > -1 && idU != myID) {
+                    u = getPos(neighborU, dU);
+                    debugU = dU;
+                    foundU = true;
+                }
+            }
+        }
+
+        // Down
+        if (!foundD) {
+            ivec2 neighborD = pixelPos + ivec2(0, -offset);
+            if (neighborD.y >= 0) {
+                int idD = imageLoad(idTex, neighborD).r;
+                float dD = texelFetch(depthTex, neighborD, 0).r;
+                if (idD > -1 && idD != myID) {
+                    d = getPos(neighborD, dD);
+                    debugD = dD;
+                    foundD = true;
+                }
+            }
+        }
+
+        if (foundL && foundR && foundU && foundD)
+            break;
+    }
+
+    if (foundL && foundR && foundU && foundD) {
+        vec3 dpdx = r - l;
+        vec3 dpdy = d - u;
+        
+        // Debug to check if crossVec broken
+        vec3 crossVec = cross(dpdx, dpdy);
+        vec3 normal = normalize(crossVec);
+
+        if (normal.z > 0)
+            normal *= -1;
+
+         if (length(normal) < 1e-5) // check if normal is 0
+            imageStore(normalTex, pixelPos, vec4(1.0, 0.0, 0.0, 1.0)); //red
+        else
+            imageStore(normalTex, pixelPos, vec4(debugL,debugR,debugD, 1.0));
+    } else {
+        imageStore(normalTex, pixelPos, vec4(1.0, 0.0, 1.0, 1.0));
+    }
+}

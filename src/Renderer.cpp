@@ -20,6 +20,7 @@ Renderer::Renderer(Camera* cam) {
     m_pShaderDepth = nullptr;
     m_pShaderPointsOnly = nullptr;
     m_pShaderCalcNormal = nullptr;
+    m_pShaderNormalCompute = nullptr;
     m_pShaderPointsNormals = nullptr;
     m_pDebugIDTexture = nullptr;
     m_pDebugNormalTexture = nullptr;
@@ -35,6 +36,7 @@ Renderer::~Renderer() {
     delete m_pShaderPointsOnly;
     delete m_pShaderCalcNormal;
     delete m_pShaderPointsNormals;
+    delete m_pShaderNormalCompute;
     delete m_pDebugIDTexture;
     delete m_pDebugNormalTexture;
     glDeleteVertexArrays(1, &m_VAO);
@@ -56,6 +58,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     m_pShaderDepth = new Shader("src/shaders/depth_pass.vert", "src/shaders/depth_pass.frag");
     m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
     m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
+    m_pShaderNormalCompute = new Shader("src/shaders/calc_normal.comp");
     m_pShaderPointsNormals = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom",
         "src/shaders/draw_lines.frag");
     m_pDebugIDTexture =
@@ -154,6 +157,7 @@ void Renderer::Render(float fps) {
 
     // if its ground truth (point cloud with normals) dont calculate obv
     // Only calculate if "TAB" is pressed (=Recalculate on) to prevent LAG
+
     if (!m_pointCloud.m_hasNormals && m_recalculate) {
 
         // First pass: render point cloud to fill depth and ID textures
@@ -169,7 +173,6 @@ void Renderer::Render(float fps) {
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
             glm::value_ptr(model));
         glUniform1f(glGetUniformLocation(m_pShaderDepth->m_shaderID, "pointSize"), pointSize);
-        
 
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
@@ -179,44 +182,41 @@ void Renderer::Render(float fps) {
 
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
-       
-        m_pShaderCalcNormal->Use();  // use calc_normal shader
+        glUseProgram(m_pShaderNormalCompute->m_shaderID);
 
-        GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
-        glDrawBuffers(1, attachments);
+        glBindImageTexture(0, m_idTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32I);
+        glBindImageTexture(1, m_normalTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-        glActiveTexture(GL_TEXTURE0);
+        glActiveTexture(GL_TEXTURE0 + 1);
         glBindTexture(GL_TEXTURE_2D, m_depthTex);
-        glUniform1i(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "depthTex"), 0);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "depthTex"), 1);
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m_idTex);
-        glUniform1i(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "idTex"), 1);
-
-        glUniform2f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "iResolution"), m_width,
-            m_height);
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "view"), 1, GL_FALSE,
+        glUniform2i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "screenSize"), m_width, m_height);
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "InvView"), 1, GL_FALSE,
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "InvView"), 1, GL_FALSE,
             glm::value_ptr(glm::inverse(view)));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "proj"), 1, GL_FALSE,
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "proj"), 1, GL_FALSE,
             glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "invProj"), 1,
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invProj"), 1,
             GL_FALSE, glm::value_ptr(glm::inverse(projection)));
-        glUniform1f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "zNear"), m_zNear);
-        glUniform1f(glGetUniformLocation(m_pShaderCalcNormal->m_shaderID, "zFar"), m_zFar);
+        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zNear"), m_zNear);
+        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
+
+        GLuint workGroupX = (m_width + 7) / 8;
+        GLuint workGroupY = (m_height + 7) / 8;
+        glDispatchCompute(workGroupX, workGroupY, 1);
+        
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
 
         std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
-        glBindVertexArray(m_quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
 
         // Copy computed normals back to point cloud
         AssignNormalsToPointCloud(m_pointCloud);
 
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, m_pointsAmount * sizeof(Point),
-            m_pointCloud.m_points.data());
+        glBufferSubData(GL_ARRAY_BUFFER, 0, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         m_pCamera->HasChanged = false;
@@ -230,6 +230,21 @@ void Renderer::Render(float fps) {
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_POINT_SMOOTH);
+
+    if (m_showNormalMap == true) {
+        // Debug ID Texture
+
+        //std::cout << "Showing Normal Texture" << std::endl;
+        m_pDebugNormalTexture->Use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_normalTex);
+        glUniform1i(glGetUniformLocation(m_pDebugNormalTexture->m_shaderID, "normTex"), 0);
+
+        // draw fullscreen quad
+        glBindVertexArray(m_quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
 
     if (m_showNormals) {
         // draw white points
@@ -281,22 +296,6 @@ void Renderer::Render(float fps) {
             glBindVertexArray(m_frustumVAO);
             glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
         }
-
-        // doesnt work
-        if (m_showNormalMap == true) {
-            // Debug ID Texture
-           
-            m_pDebugNormalTexture->Use();
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, m_normalTex);
-            glUniform1i(glGetUniformLocation(m_pDebugNormalTexture->m_shaderID, "normTex"), 0);
-
-            // draw fullscreen quad
-            glBindVertexArray(m_quadVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-        }
-
     }
     else {
         m_pShaderPointsOnly->Use();
@@ -449,7 +448,7 @@ void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
     std::vector<glm::vec3> normals;
     std::vector<int> ids;
 
-    bool averaging = true;
+    bool averaging = false;
 
     ReadNormalTexture(normals);
     ReadIDTexture(ids);
@@ -532,7 +531,7 @@ void Renderer::ConfigureFBO() {
     // normal map
     glGenTextures(1, &m_normalTex);
     glBindTexture(GL_TEXTURE_2D, m_normalTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, m_width, m_height, 0, GL_RGB, GL_FLOAT,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_width, m_height, 0, GL_RGBA, GL_FLOAT,
         nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

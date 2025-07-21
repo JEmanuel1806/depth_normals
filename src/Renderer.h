@@ -51,6 +51,7 @@ private:
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
          Shader* m_pShaderCalcNormal = nullptr;
+         Shader* m_pShaderNormalCompute = nullptr;
          Shader* m_pShaderPointsNormals = nullptr;
          Shader* m_pDebugIDTexture = nullptr;
          Shader* m_pDebugNormalTexture = nullptr;

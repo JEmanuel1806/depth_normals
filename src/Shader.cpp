@@ -45,6 +45,40 @@ Shader::Shader(const char* vertex_source, const char* geometry_source, const cha
     glDeleteShader(fragment_shader);
 }
 
+Shader::Shader(const char* compute_source) {
+    std::string computeCode = ReadFile(compute_source);
+
+
+    const char* compute_shader_code = computeCode.c_str();
+
+
+    GLuint compute_shader = CompileShader(compute_shader_code, GL_COMPUTE_SHADER);
+
+    GLint success;
+    glGetShaderiv(compute_shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetShaderInfoLog(compute_shader, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::COMPUTE::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+
+
+    m_shaderID = glCreateProgram();
+    glAttachShader(m_shaderID, compute_shader);
+
+    glLinkProgram(m_shaderID);
+
+    glGetProgramiv(m_shaderID, GL_LINK_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetProgramInfoLog(m_shaderID, 512, NULL, infoLog);
+        std::cerr << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(compute_shader);
+
+}
+
 Shader::~Shader() {
     glDeleteProgram(m_shaderID);
 }
