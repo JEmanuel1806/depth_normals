@@ -147,8 +147,6 @@ void Renderer::Render(float fps) {
 
     // Clear ID texture (used to map screen pixels back to point IDs), default
     // value "-1"
-    // GLint clearValue = -1;
-    // glClearTexImage(m_idTex, 0, GL_RED_INTEGER, GL_INT, &clearValue);
 
     float zero[3] = { 0.0f, 0.0f, 0.0f };
     glClearTexImage(m_normalTex, 0, GL_RGB, GL_FLOAT, &zero);
@@ -181,13 +179,17 @@ void Renderer::Render(float fps) {
         // Second pass: compute normals from depth buffer, download data and store it in the pointcloud
 
         glDisable(GL_DEPTH_TEST);
+
+
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+
+
         glUseProgram(m_pShaderNormalCompute->m_shaderID);
 
         glBindImageTexture(0, m_idTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32I);
         glBindImageTexture(1, m_normalTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-        glActiveTexture(GL_TEXTURE0 + 1);
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, m_depthTex);
         glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "depthTex"), 1);
 
@@ -202,6 +204,7 @@ void Renderer::Render(float fps) {
             GL_FALSE, glm::value_ptr(glm::inverse(projection)));
         glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zNear"), m_zNear);
         glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
+        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
 
         GLuint workGroupX = (m_width + 7) / 8;
         GLuint workGroupY = (m_height + 7) / 8;
@@ -209,15 +212,7 @@ void Renderer::Render(float fps) {
         
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-
         std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
-
-        // Copy computed normals back to point cloud
-        AssignNormalsToPointCloud(m_pointCloud);
-
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data());
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         m_pCamera->HasChanged = false;
 
@@ -416,94 +411,14 @@ GLuint Renderer::SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& v
  * -------------------------------------------------------------------------
  */
 
-void Renderer::ReadNormalTexture(std::vector<glm::vec3>& normals) {
-    glBindTexture(GL_TEXTURE_2D, m_normalTex);
-    normals.resize(m_width * m_height);
+void Renderer::ConfigureSSBO() {
+    GLuint pointSSBO;
+    glGenBuffers(1, &pointSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmount, nullptr, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointSSBO);
 
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, normals.data());
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void Renderer::ReadIDTexture(std::vector<int>& ids) {
-    glBindTexture(GL_TEXTURE_2D, m_idTex);
-    ids.resize(m_width * m_height);
-
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED_INTEGER, GL_INT, ids.data());
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-/* -------------------------------------------------------------------------
- * assignNormalsToPointCloud
- *
- * Reading out the vector with the normal information from the texture and
- * assigning it to the Point Cloud, replacing default values from before. The ID
- * vector helps distinguish, which point represents which fragment and can thus
- * assign the correct normal to each point
- * -------------------------------------------------------------------------
- */
-
-void Renderer::AssignNormalsToPointCloud(PointCloud& pointCloud) {
-    std::vector<glm::vec3> normals;
-    std::vector<int> ids;
-
-    bool averaging = false;
-
-    ReadNormalTexture(normals);
-    ReadIDTexture(ids);
-
-    if (normals.size() != ids.size())
-        std::cout << "Normals and IDs dont match the same size! Normals: " << normals.size()
-        << " IDs: " << ids.size() << std::endl;
-
-    if (averaging) {
-        // Normal calculation happens for each pixel -> a point covers multiple
-        // pixels -> which normal of which pixel best represents the normal of the
-        // point? store all normals for each ID and average the normals to represent
-        // each point
-        std::unordered_map<int, std::vector<glm::vec3>> normalsById;
-
-        for (int i = 0; i < normals.size(); ++i) {
-            if (ids[i] >= 0 && ids[i] < pointCloud.PointsAmount()) {
-                normalsById[ids[i]].push_back(normals[i]);
-            }
-        }
-
-        for (auto& pair : normalsById) {
-            glm::vec3 sumVector(0.0f);
-
-            if (pair.first > 0) {
-                //for (auto normal : pair.second)
-                    //std::cout << "Normal(:" << pair.first << "):" << normal.x << "/" << normal.y << "/" << normal.z << ".\n";
-            }
-
-            for (const auto& normal : pair.second) {
-                sumVector += normal;
-            }
-
-            glm::vec3 average = sumVector / static_cast<float>(pair.second.size());
-
-            if (pair.first > 0) {
-                //std::cout << "ID " << pair.first << " has " << pair.second.size() << " fragments.\n";
-                //std::cout << "Calculated Avg Normal(" << pair.first << "):" << glm::to_string(average) << "\n";
-            }
-
-            if (pair.first >= 0 && pair.first < pointCloud.PointsAmount()) {
-                pointCloud.GetPointByID(pair.first)->m_normal = normalize(average);
-            }
-        }
-    }
-    else {
-        // Just for debug, no averaging
-        for (size_t i = 0; i < normals.size(); ++i) {
-            int id = ids[i];
-
-            if (id >= 0 && id < pointCloud.PointsAmount()) {
-                pointCloud.GetPointByID(id)->m_normal = normals[i];
-            }
-        }
-    }
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data(), GL_DYNAMIC_DRAW);
 }
 
 /* -------------------------------------------------------------------------
@@ -542,6 +457,8 @@ void Renderer::ConfigureFBO() {
     glBindTexture(GL_TEXTURE_2D, m_idTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32I, m_width, m_height, 0, GL_RED_INTEGER, GL_INT,
         nullptr);
+    std::vector<GLint> initData(m_width * m_height, 2);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RED_INTEGER, GL_INT, initData.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_idTex, 0);
@@ -583,7 +500,7 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     ss << "FPS: " << fps
         << "\nPoints: " << m_pointsAmount
         << "\nPoint Size: " << pointSize
-        << "\nNormal (Point 1): " << glm::to_string(pc.GetNormalByID(1));
+        << "\nNormal (Point 10): " << glm::to_string(pc.GetNormalByID(10));
     std::string text = ss.str();
 
     static char buffer[99999];

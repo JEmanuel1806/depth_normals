@@ -65,6 +65,7 @@ private:
 
 private:
          void ConfigureFBO();
+         void ConfigureSSBO();
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
          GLuint SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& view);
