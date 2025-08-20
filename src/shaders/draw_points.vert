@@ -13,6 +13,6 @@ out vec3 vColor;
 
 void main(){
 	gl_Position = proj * view * model * vec4(aPos, 1.0);
-	gl_PointSize = 3;
+	gl_PointSize = pointSize;
 	vColor = aColor;
 }

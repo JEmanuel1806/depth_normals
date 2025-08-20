@@ -55,7 +55,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer_right = new Renderer(camera);
 
     // calculation
-    renderer_left->Start("data/custom/no_normals/tianfang_1.fbx.ply", width/2, height);
+    renderer_left->Start("data/custom/no_normals/plane_no_normals.ply", width/2, height);
 
     // ground truth
     renderer_right->Start("data/custom/ground_truth/plane.ply", width/2, height);
@@ -123,20 +123,17 @@ void App::processInput() {
     toggle(GLFW_KEY_I, renderer_left->m_showIDMap);
     renderer_right->m_showIDMap = renderer_left->m_showIDMap;
 
-    toggle(GLFW_KEY_O, renderer_left->m_showNormalMap);
-    renderer_right->m_showNormalMap = renderer_left->m_showNormalMap;
-
     // adjust point size of pointcloud 
     if (isPressed(GLFW_KEY_KP_ADD) && !key_pressed) {
-        renderer_left->pointSize++;
-        renderer_right->pointSize++;
+        renderer_left->splatSize++;
+        renderer_right->splatSize++;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_RELEASE) key_pressed = false;
 
     if (isPressed(GLFW_KEY_KP_SUBTRACT) && !key_pressed) {
-        renderer_left->pointSize--;
-        renderer_right->pointSize--;
+        renderer_left->splatSize--;
+        renderer_right->splatSize--;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_RELEASE) key_pressed = false;

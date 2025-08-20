@@ -1,10 +1,12 @@
-#version 440
+#version 440 core
 
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(r32i, binding = 0) uniform iimage2D idTex;
-layout(rgba32f, binding = 1) uniform image2D normalTex;
-uniform sampler2D depthTex;
+uniform sampler2D ref_depth;
+uniform isampler2D ref_id;
+
+//uniform sampler2D splat_depth;
+//uniform isampler2D splat_id;
 
 uniform ivec2 screenSize;
 uniform mat4 proj;
@@ -17,128 +19,88 @@ uniform float maxID;
 
 uniform mat4 invView;
 
+const ivec2 OFFS[24] = ivec2[24](
+  ivec2(0,0), 
+  ivec2(1,0), ivec2(-1,0), ivec2(0,1), ivec2(0,-1),
+  ivec2(2,0), ivec2(-2,0), ivec2(0,2), ivec2(0,-2),
+  ivec2(1,1), ivec2(1,-1), ivec2(-1,1), ivec2(-1,-1),
+  ivec2(2,1), ivec2(2,-1), ivec2(-2,1), ivec2(-2,-1),
+  ivec2(1,2), ivec2(1,-2), ivec2(-1,2), ivec2(-1,-2),
+  ivec2(2,2), ivec2(-2,2), ivec2(2,-2) 
+);
+
 struct Point {
-    vec3 position;
-    vec3 normal;
-    vec3 color;
+    int  pointID; 
+
+    vec3 position; 
+    float _padA;
+
+    vec3 color;   
+    float _padB;
+    
+    vec3 normal;   
+    float _padC;     
 };
 
 layout(std430, binding = 0) buffer PointBuffer {
     Point points[];
 };
 
-
+// reconstruct position
 vec3 getPos(ivec2 fragCoord, float depth) {
-        
-    vec2 ndc = (vec2(fragCoord) / screenSize) * 2.0 - 1.0;
-    vec4 clip = vec4(ndc, depth * 2.0 - 1.0, 1.0);  // Z in [-1, 1] NDC
-    vec4 view = invProj * clip;
-    view /= view.w;
-    return view.xyz;
-
-    //vec4 world = invView * view;
-    //return world.xyz;
-}
-
-float linearizeDepth(float z, float near, float far) {
-    float ndc = z * 2.0 - 1.0;
-    return (2.0 * near * far) / (far + near - ndc * (far - near));
+    
+    vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
+    float ndcDepth = depth * 2.0 - 1.0; 
+    
+    vec4 clipSpace = vec4(ndc, ndcDepth, 1.0);
+    vec4 viewSpace = invProj * clipSpace;
+    viewSpace /= viewSpace.w;
+    return viewSpace.xyz;
 }
 
 void main() {
-    ivec2 pixelPos = ivec2(gl_GlobalInvocationID.xy);
-    if (pixelPos.x >= screenSize.x || pixelPos.y >= screenSize.y)
-        return;
 
-    int myID = imageLoad(idTex, pixelPos).r;
-    float myDepth = texelFetch(depthTex, pixelPos, 0).r;
-    if (myID < 0 || myID > maxID ) {
-        return;
-        }
+    ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy); 
+    int currentID = texelFetch(ref_id, currentPos, 0).r; 
+    vec3 normal = vec3(currentID,0.3f,0.4f); 
+    points[10].normal = normal;
 
-    vec3 l, r, u, d;
-    float debugL, debugR, debugU, debugD = 0;
+    /*
+    // read pixel and get id and depth
+    ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
+    int currentID = texelFetch(ref_id, currentPos, 0).r;
+    if (currentID < 0) return;
+    float currentDepth = texelFetch(ref_depth, currentPos, 0).r;
+    
+    vec3 reconstructedPoint = getPos(currentPos, currentDepth);
 
-    bool foundL = false, foundR = false, foundU = false, foundD = false;
+    vec3 sum = vec3(0.0);
+    int count = 0;
 
-    for (int offset = 1; offset < 25; ++offset) {
-        // Left
-        if (!foundL) {
-            ivec2 neighborL = pixelPos + ivec2(-offset, 0);
-            if (neighborL.x >= 0) {
-                int idL = imageLoad(idTex, neighborL).r;
-                float dL = texelFetch(depthTex, neighborL, 0).r;
-                if (idL >= 0 && idL <= (maxID - 1) && idL != myID) {
-                    l = getPos(neighborL, dL);
-                    debugL = idL;
-                    foundL = true;
-                }
-            }
-        }
+    for (int i = 0; i < OFFS.length(); ++i) {
+        ivec2 offsetPos = currentPos + OFFS[i];
+        if (offsetPos.x < 0 || offsetPos.y < 0 || offsetPos.x >= screenSize.x || offsetPos.y >= screenSize.y)
+            continue;
 
-        // Right
-        if (!foundR) {
-            ivec2 neighborR = pixelPos + ivec2(offset, 0);
-            if (neighborR.x < screenSize.x) {
-                int idR = imageLoad(idTex, neighborR).r;
-                float dR = texelFetch(depthTex, neighborR, 0).r;
-                if (idR >= 0 && idR <= (maxID - 1) && idR != myID) {
-                    r = getPos(neighborR, dR);
-                    debugR = idR;
-                    foundR = true;
-                }
-            }
-        }
+        int offsetID = texelFetch(splat_id, offsetPos, 0).r;
+        if (offsetID < 0 || offsetID == currentID) 
+            continue;
 
-        // Up
-        if (!foundU) {
-            ivec2 neighborU = pixelPos + ivec2(0, offset);
-            if (neighborU.y < screenSize.y) {
-                int idU = imageLoad(idTex, neighborU).r;
-                float dU = texelFetch(depthTex, neighborU, 0).r;
-                if (idU >= 0 && idU <= (maxID - 1) && idU != myID) {
-                    u = getPos(neighborU, dU);
-                    debugU = idU;
-                    foundU = true;
-                }
-            }
-        }
-
-        // Down
-        if (!foundD) {
-            ivec2 neighborD = pixelPos + ivec2(0, -offset);
-            if (neighborD.y >= 0) {
-                int idD = imageLoad(idTex, neighborD).r;
-                float dD = texelFetch(depthTex, neighborD, 0).r;
-                if (idD >= 0 && idD <= (maxID - 1) && idD != myID) {
-                    d = getPos(neighborD, dD);
-                    debugD = idD;
-                    foundD = true;
-                }
-            }
-        }
-
-        if (foundL && foundR && foundU && foundD)
-            break;
-    }
-
-    if (foundL && foundR && foundU && foundD) {
-        vec3 dpdx = r - l;
-        vec3 dpdy = d - u;
         
-        // Debug to check if crossVec broken
-        vec3 crossVec = cross(dpdx, dpdy);
-        vec3 normal = normalize(crossVec);
+        vec3 neighborPoint = points[offsetID].position;
 
-        if (normal.z > 0)
-            normal *= -1;
+        //if (distance(reconstructedPoint, neighborPoint) > 1.0) continue;
 
-         if (length(normal) < 1e-5) // check if normal is 0
-            imageStore(normalTex, pixelPos, vec4(-1.0, 0.0, 0.0, 1.0)); // red
-        else
-            imageStore(normalTex, pixelPos, vec4(-normal, 1.0));
-            points[myID].normal = normal;
-    } else {
-        imageStore(normalTex, pixelPos, vec4(-1,-1,-1, 1.0)); // no normal
+        sum += normalize(neighborPoint - reconstructedPoint);
+        count++;
     }
+
+    if (count > 0) {
+        //vec3 normal = normalize(-sum / float(count));
+        points[currentID].normal = vec3(0.25,0.25,0.25);
+    }
+    else{
+        points[currentID].normal = vec3(0.5,0.5,0.5);
+    }
+    */   
 }
