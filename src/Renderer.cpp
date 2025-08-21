@@ -102,7 +102,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
         glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
     m_frustumVAO = SetupFrustumVAO(projection, m_pCamera->GetViewMatrix());
     
-    ConfigureFBO();
+    ConfigureRefFBO();
+    ConfigureSplatFBO();
     ConfigureSSBO();
     
     GLint currentFB;
@@ -111,8 +112,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 
     if (m_pointCloud.m_hasNormals) {
         std::cout << "Normals detected. Skip normal calculation..." << std::endl;
-        expectedNormal = m_pointCloud.GetNormalByID(10);
-        std::cout << "Expected Normal for ID: " << 10<< " : " << glm::to_string(expectedNormal)
+        expectedNormal = m_pointCloud.GetNormalByID(222);
+        std::cout << "Expected Normal for ID: " << 222<< " : " << glm::to_string(expectedNormal)
             << std::endl;
     }
     else {
@@ -173,22 +174,26 @@ void Renderer::Render(float fps) {
         glBindVertexArray(0);
 
         // Second pass: render point cloud with bigger splats and store to 2 textures (splat textures)
-        //glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
-        //glDepthMask(GL_FALSE);
-        //glDisable(GL_BLEND);
-        //
-        //m_pShaderBigSplats->Use();  
-        //glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
-        //    glm::value_ptr(view));                
-        //glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "proj"), 1, GL_FALSE,
-        //    glm::value_ptr(projection));          
-        //glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "model"), 1, GL_FALSE,
-        //    glm::value_ptr(model));
-        //glUniform1f(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "pointSize"), splatSize);
-        //
-        //glBindVertexArray(m_VAO);
-        //glDrawArrays(GL_POINTS, 0, m_pointsAmount);
-        //glBindVertexArray(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
+        glDepthMask(GL_FALSE);
+        glDisable(GL_BLEND);
+
+        /* only activate for debug!*/
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //glEnable(GL_DEPTH_TEST);
+        
+        m_pShaderBigSplats->Use();  
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
+            glm::value_ptr(view));                
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "proj"), 1, GL_FALSE,
+            glm::value_ptr(projection));          
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "model"), 1, GL_FALSE,
+            glm::value_ptr(model));
+        glUniform1f(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "pointSize"), splatSize);
+        
+        glBindVertexArray(m_VAO);
+        glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+        glBindVertexArray(0);
 
         // Third pass: compute normals from depth buffer, calculate in compute shader 
 
@@ -213,13 +218,13 @@ void Renderer::Render(float fps) {
 
         // splat textures
 
-        //glActiveTexture(GL_TEXTURE2);
-        //glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
-        //glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_depth"), 2);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_depth"), 2);
 
-        //glActiveTexture(GL_TEXTURE3);
-        //glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
-        //glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_id"), 3);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_id"), 3);
 
         // other uniforms
 
@@ -251,7 +256,12 @@ void Renderer::Render(float fps) {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointSSBO);
         glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
         
-        Point p = m_pointCloud.m_points[10];
+        // back to VBO for arrow vis
+        glBindBuffer(GL_COPY_READ_BUFFER, m_pointSSBO);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point)* m_pointsAmount);
+
+        Point p = m_pointCloud.m_points[12];
         std::cout << "Point ID: " << p.m_pointID << std::endl;
         std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
         std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
@@ -272,16 +282,13 @@ void Renderer::Render(float fps) {
     if (m_showIDMap == true) {
         std::cout << "Showing Texture" << std::endl;
         m_pDebugTexture->Use();
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_idTexRef);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        //glUniform1f(glGetUniformLocation(m_pDebugTexture->m_shaderID, "zNear"), m_zNear);
-        //glUniform1f(glGetUniformLocation(m_pDebugTexture->m_shaderID, "zFar"), m_zFar);
         glUniform1i(glGetUniformLocation(m_pDebugTexture->m_shaderID, "idTex"), 0);
 
-        // draw fullscreen quad
+        glDisable(GL_BLEND);           
         glBindVertexArray(m_quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
@@ -454,7 +461,7 @@ void Renderer::ConfigureSSBO() {
  * -------------------------------------------------------------------------
  */
 
-void Renderer::ConfigureFBO() {
+void Renderer::ConfigureRefFBO() {
     glGenFramebuffers(1, &m_fboRef);
     glBindFramebuffer(GL_FRAMEBUFFER, m_fboRef);
 
@@ -475,6 +482,10 @@ void Renderer::ConfigureFBO() {
     glBindTexture(GL_TEXTURE_2D, m_idTexRef);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32I, m_width, m_height, 0, GL_RED_INTEGER, GL_INT,
         nullptr);
+
+    const GLint minusOne[1] = { -1 };
+    glClearTexImage(m_idTexRef, 0, GL_RED_INTEGER, GL_INT, minusOne);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_idTexRef, 0);
@@ -484,7 +495,50 @@ void Renderer::ConfigureFBO() {
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status == GL_FRAMEBUFFER_COMPLETE) {
-        printf("FBO complete!\n");
+        printf("Ref FBO complete!\n");
+    }
+    else {
+        printf("FBO incomplete! Error: %d\n", status);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Renderer::ConfigureSplatFBO() {
+    glGenFramebuffers(1, &m_fboSplat);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
+
+    // depth tex
+    glGenTextures(1, &m_depthTexSplat);
+    glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, m_width, m_height, 0,
+        GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_depthTexSplat, 0);
+
+
+    // ID texture, for storing IDs for each Point of the Pointcloud
+    glGenTextures(1, &m_idTexSplat);
+    glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32I, m_width, m_height, 0, GL_RED_INTEGER, GL_INT,
+        nullptr);
+
+    const GLint minusOne[1] = { -1 };
+    glClearTexImage(m_idTexSplat, 0, GL_RED_INTEGER, GL_INT, minusOne);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_idTexSplat, 0);
+
+    GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status == GL_FRAMEBUFFER_COMPLETE) {
+        printf("Splat FBO complete!\n");
     }
     else {
         printf("FBO incomplete! Error: %d\n", status);
@@ -516,7 +570,7 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     ss << "FPS: " << fps
         << "\nPoints: " << m_pointsAmount
         << "\nSplat Size: " << splatSize
-        << "\nNormal (Point 10): " << glm::to_string(pc.GetNormalByID(10));
+        << "\nNormal (Point 222): " << glm::to_string(pc.GetNormalByID(222));
     std::string text = ss.str();
 
     static char buffer[99999];

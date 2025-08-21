@@ -35,7 +35,7 @@ public:
 
          size_t m_pointsAmount = 0;
 
-         float splatSize = 1.0f;
+         float splatSize = 50.0f;
          float m_zNear = 0.1f;
          float m_zFar = 100.0f;
 
@@ -66,7 +66,8 @@ private:
 
 private:
          void ConfigureSSBO();
-         void ConfigureFBO();
+         void ConfigureRefFBO();
+         void ConfigureSplatFBO();
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();

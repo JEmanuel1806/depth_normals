@@ -5,8 +5,8 @@ layout(local_size_x = 8, local_size_y = 8) in;
 uniform sampler2D ref_depth;
 uniform isampler2D ref_id;
 
-//uniform sampler2D splat_depth;
-//uniform isampler2D splat_id;
+uniform sampler2D splat_depth;
+uniform isampler2D splat_id;
 
 uniform ivec2 screenSize;
 uniform mat4 proj;
@@ -60,12 +60,6 @@ vec3 getPos(ivec2 fragCoord, float depth) {
 
 void main() {
 
-    ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy); 
-    int currentID = texelFetch(ref_id, currentPos, 0).r; 
-    vec3 normal = vec3(currentID,0.3f,0.4f); 
-    points[10].normal = normal;
-
-    /*
     // read pixel and get id and depth
     ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
     int currentID = texelFetch(ref_id, currentPos, 0).r;
@@ -89,7 +83,7 @@ void main() {
         
         vec3 neighborPoint = points[offsetID].position;
 
-        //if (distance(reconstructedPoint, neighborPoint) > 1.0) continue;
+        if (distance(reconstructedPoint, neighborPoint) > 1.0) continue;
 
         sum += normalize(neighborPoint - reconstructedPoint);
         count++;
@@ -100,7 +94,6 @@ void main() {
         points[currentID].normal = vec3(0.25,0.25,0.25);
     }
     else{
-        points[currentID].normal = vec3(0.5,0.5,0.5);
-    }
-    */   
+        points[currentID].normal = vec3(0,-0.5,-0.5);
+    } 
 }
