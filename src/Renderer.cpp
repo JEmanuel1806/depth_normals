@@ -112,8 +112,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 
     if (m_pointCloud.m_hasNormals) {
         std::cout << "Normals detected. Skip normal calculation..." << std::endl;
-        expectedNormal = m_pointCloud.GetNormalByID(222);
-        std::cout << "Expected Normal for ID: " << 222<< " : " << glm::to_string(expectedNormal)
+        expectedNormal = m_pointCloud.GetNormalByID(0);
+        std::cout << "Expected Normal for ID: " << 0<< " : " << glm::to_string(expectedNormal)
             << std::endl;
     }
     else {
@@ -175,12 +175,12 @@ void Renderer::Render(float fps) {
 
         // Second pass: render point cloud with bigger splats and store to 2 textures (splat textures)
         glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
-        glDepthMask(GL_FALSE);
-        glDisable(GL_BLEND);
+        //glDepthMask(GL_FALSE);
+        //glDisable(GL_BLEND);
 
         /* only activate for debug!*/
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glEnable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
         
         m_pShaderBigSplats->Use();  
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
@@ -261,7 +261,7 @@ void Renderer::Render(float fps) {
         glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point)* m_pointsAmount);
 
-        Point p = m_pointCloud.m_points[12];
+        Point p = m_pointCloud.m_points[0];
         std::cout << "Point ID: " << p.m_pointID << std::endl;
         std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
         std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
@@ -276,14 +276,12 @@ void Renderer::Render(float fps) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
-    glEnable(GL_POINT_SMOOTH);
 
     // for debugging any texture quickly
     if (m_showIDMap == true) {
-        std::cout << "Showing Texture" << std::endl;
         m_pDebugTexture->Use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_idTexRef);
+        glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glUniform1i(glGetUniformLocation(m_pDebugTexture->m_shaderID, "idTex"), 0);
@@ -344,7 +342,7 @@ void Renderer::Render(float fps) {
     }
     glBindVertexArray(0);
 
-    RenderText(fps, m_pointCloud);
+    //RenderText(fps, m_pointCloud);
 }
 
 // VAO for the normal lines
@@ -556,6 +554,8 @@ void Renderer::ConfigureSplatFBO() {
  *
  * -------------------------------------------------------------------------
  */
+
+/*
 void Renderer::RenderText(float fps, PointCloud pc ) {
     glUseProgram(0);
 
@@ -583,3 +583,4 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     glDisableClientState(GL_VERTEX_ARRAY);
     glPopMatrix();
 }
+*/
