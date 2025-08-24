@@ -116,8 +116,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 
     if (m_pointCloud.m_hasNormals) {
         std::cout << "Normals detected. Skip normal calculation..." << std::endl;
-        expectedNormal = m_pointCloud.GetNormalByID(4);
-        std::cout << "Expected Normal for ID: " << 4<< " : " << glm::to_string(expectedNormal)
+        std::cout << "Expected Normal for ID: " << 200<< " : " << glm::to_string(expectedNormal)
             << std::endl;
     }
     else {
@@ -150,6 +149,8 @@ void Renderer::Render(float fps) {
     else {
         angle = 0.0f;
     }
+
+    expectedNormal = m_pointCloud.GetNormalByID(200);
 
     glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
 
@@ -247,6 +248,7 @@ void Renderer::Render(float fps) {
 
         GLuint workGroupX = (m_width + 7) / 8;
         GLuint workGroupY = (m_height + 7) / 8;
+        glClearNamedBufferData(m_pointNormalSSBO, GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 
         glDispatchCompute(workGroupX, workGroupY, 1);
@@ -297,7 +299,6 @@ void Renderer::Render(float fps) {
         glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
 
         // compute shader vars
-
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointAvgSSBO);
 
@@ -315,7 +316,7 @@ void Renderer::Render(float fps) {
         glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
    
-        Point p = m_pointCloud.m_points[4];
+        Point p = m_pointCloud.m_points[200];
         std::cout << "Point ID: " << p.m_pointID << std::endl;
         std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
         std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
@@ -397,7 +398,7 @@ void Renderer::Render(float fps) {
     }
     glBindVertexArray(0);
 
-    //RenderText(fps, m_pointCloud);
+    RenderText(fps, m_pointCloud);
 }
 
 // VAO for the normal lines
@@ -634,7 +635,7 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     ss << "FPS: " << fps
         << "\nPoints: " << m_pointsAmount
         << "\nSplat Size: " << splatSize
-        << "\nNormal (Point 222): " << glm::to_string(pc.GetNormalByID(222));
+        << "\nNormal (Point 200): " << glm::to_string(pc.GetNormalByID(200));
     std::string text = ss.str();
 
     static char buffer[99999];

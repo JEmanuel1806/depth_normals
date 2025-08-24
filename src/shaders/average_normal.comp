@@ -23,6 +23,6 @@ void main(){
     int currentID = texelFetch(ref_id, currentPos, 0).r;
     
     if (currentID > 0) {   
-      points[currentID].normal = vec3(normalBuffer[currentID].counter, 0,0);
+      points[currentID].normal = normalize(vec3(normalBuffer[currentID].normal/normalBuffer[currentID].counter));
     }
 }
