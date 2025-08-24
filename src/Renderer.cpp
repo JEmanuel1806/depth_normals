@@ -21,6 +21,7 @@ Renderer::Renderer(Camera* cam) {
     m_pShaderBigSplats = nullptr;
     m_pShaderPointsOnly = nullptr;
     m_pShaderCalcNormal = nullptr;
+    m_pShaderNormalAvg = nullptr;
     m_pShaderNormalCompute = nullptr;
     m_pShaderPointsNormals = nullptr;
     m_pDebugTexture = nullptr;
@@ -36,6 +37,7 @@ Renderer::~Renderer() {
     delete m_pShaderBigSplats;
     delete m_pShaderPointsOnly;
     delete m_pShaderCalcNormal;
+    delete m_pShaderNormalAvg;
     delete m_pShaderPointsNormals;
     delete m_pShaderNormalCompute;
     delete m_pDebugTexture;
@@ -60,6 +62,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
     m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
     m_pShaderNormalCompute = new Shader("src/shaders/calc_normal.comp");
+    m_pShaderNormalAvg = new Shader("src/shaders/average_normal.comp");
     m_pShaderPointsNormals = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom",
         "src/shaders/draw_lines.frag");
     m_pDebugTexture =
@@ -104,7 +107,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     
     ConfigureRefFBO();
     ConfigureSplatFBO();
-    ConfigureSSBO();
+    ConfigureAvgSSBO();
+    ConfigureNormalSSBO();
     
     GLint currentFB;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFB);
@@ -112,8 +116,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 
     if (m_pointCloud.m_hasNormals) {
         std::cout << "Normals detected. Skip normal calculation..." << std::endl;
-        expectedNormal = m_pointCloud.GetNormalByID(0);
-        std::cout << "Expected Normal for ID: " << 0<< " : " << glm::to_string(expectedNormal)
+        expectedNormal = m_pointCloud.GetNormalByID(4);
+        std::cout << "Expected Normal for ID: " << 4<< " : " << glm::to_string(expectedNormal)
             << std::endl;
     }
     else {
@@ -199,8 +203,6 @@ void Renderer::Render(float fps) {
 
         glDisable(GL_DEPTH_TEST);
 
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
         glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
         glUseProgram(m_pShaderNormalCompute->m_shaderID);
 
@@ -214,7 +216,6 @@ void Renderer::Render(float fps) {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, m_idTexRef);
         glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "ref_id"), 1);
-
 
         // splat textures
 
@@ -241,27 +242,80 @@ void Renderer::Render(float fps) {
         glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
         glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
 
+
         // compute shader vars
 
         GLuint workGroupX = (m_width + 7) / 8;
         GLuint workGroupY = (m_height + 7) / 8;
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointSSBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 
         glDispatchCompute(workGroupX, workGroupY, 1);
-        
+
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointSSBO);
-        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
-        
-        // back to VBO for arrow vis
-        glBindBuffer(GL_COPY_READ_BUFFER, m_pointSSBO);
-        glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
-        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point)* m_pointsAmount);
+        // Fourth Pass: Average the accumulated normals from pass before
 
-        Point p = m_pointCloud.m_points[0];
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
+        glUseProgram(m_pShaderNormalAvg->m_shaderID);
+
+        // reference textures
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_depth"), 0);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, m_idTexRef);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_id"), 1);
+
+        // splat textures
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_depth"), 2);
+
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_id"), 3);
+
+        // other uniforms
+
+        glUniform2i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "screenSize"), m_width, m_height);
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "view"), 1, GL_FALSE,
+            glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ínvView"), 1, GL_FALSE,
+            glm::value_ptr(glm::inverse(view)));
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "proj"), 1, GL_FALSE,
+            glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invProj"), 1,
+            GL_FALSE, glm::value_ptr(glm::inverse(projection)));
+        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
+        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
+        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
+
+        // compute shader vars
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointAvgSSBO);
+
+        glDispatchCompute(workGroupX, workGroupY, 1);
+
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
+
+        // back to VBO for arrow vis
+        glBindBuffer(GL_COPY_READ_BUFFER, m_pointAvgSSBO);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
+   
+        Point p = m_pointCloud.m_points[4];
         std::cout << "Point ID: " << p.m_pointID << std::endl;
         std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
         std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
@@ -276,6 +330,7 @@ void Renderer::Render(float fps) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_POINT_SMOOTH);
 
     // for debugging any texture quickly
     if (m_showIDMap == true) {
@@ -443,13 +498,22 @@ GLuint Renderer::SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& v
  * -------------------------------------------------------------------------
  */
 
-void Renderer::ConfigureSSBO() {
+void Renderer::ConfigureNormalSSBO() {
 
-    glGenBuffers(1, &m_pointSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointSSBO);
+    glGenBuffers(1, &m_pointNormalSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointNormalSSBO);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data(), GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 
+}
+
+void Renderer::ConfigureAvgSSBO() {
+    glGenBuffers(1, &m_pointAvgSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmount,
+m_pointCloud.m_points.data(), GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointAvgSSBO); 
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 /* -------------------------------------------------------------------------
@@ -555,7 +619,7 @@ void Renderer::ConfigureSplatFBO() {
  * -------------------------------------------------------------------------
  */
 
-/*
+
 void Renderer::RenderText(float fps, PointCloud pc ) {
     glUseProgram(0);
 
@@ -583,4 +647,4 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     glDisableClientState(GL_VERTEX_ARRAY);
     glPopMatrix();
 }
-*/
+

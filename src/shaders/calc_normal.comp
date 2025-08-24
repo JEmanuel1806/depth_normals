@@ -1,4 +1,5 @@
-#version 440 core
+#version 450 core 
+#extension GL_NV_shader_atomic_float : enable
 layout(local_size_x = 8, local_size_y = 8) in;
 
 uniform sampler2D  ref_depth;
@@ -17,26 +18,19 @@ uniform float maxID;
 uniform float zFar;
 uniform float zNear;
 
-int radius = 8;
-
-struct Point {
-    int  pointID;
-    vec3 position; float _padA;
-    vec3 color;    float _padB;
-    vec3 normal;   float _padC;
+struct NormalBuffer{
+    vec3 normal;
+    int counter;
 };
 
-vec3 top = vec3(0);
-vec3 down = vec3(0);
-vec3 left = vec3(0);
-vec3 right = vec3(0);
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
 
-bool haveTop=false;
-bool haveDown=false;
-bool haveLeft=false;
-bool haveRight=false;
 
-layout(std430, binding = 0) buffer PointBuffer { Point points[]; };
+
+float delinearize_depth(float z_buffer_depth, float zNear, float zFar) {
+    float z = z_buffer_depth * 2.0 - 1.0;
+    return (2.0 * zNear * zFar) / (zFar + zNear - z * (zFar - zNear));
+}
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
@@ -47,103 +41,52 @@ vec3 getPos(ivec2 fragCoord, float depth) {
     return viewSpace.xyz;
 }
 
-vec2 worldToScreenSpace(vec3 positionWorld) {
-    vec4 clipSpace = proj * view * vec4(positionWorld, 1.0);
-    vec3 ndc = clipSpace.xyz / clipSpace.w;
-    vec2 screenSpace = (ndc.xy * 0.5 + 0.5) * vec2(screenSize);
-    return screenSpace;
-}
-
-// calculate 3D Position distance and add a weight depending on view space distance
-float calculateRangeWeight(vec3 neighborPoint, vec3 currentPoint, float sigma_r) {
-    float dist = distance(currentPoint, neighborPoint); 
-    return exp(-(dist * dist) / (2.0 * sigma_r * sigma_r));
-}
-
-// calculate 2D Screen Position distance and add a weight depending on pixels
-float calculateSpatialWeight(vec2 neighborPoint, vec2 currentPoint, float sigma_s){
-    float dist = distance(currentPoint, neighborPoint); 
-    return exp(-(dist * dist) / (2.0 * sigma_s * sigma_s));
-}
-
 void main() {
-    ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
-    int currentID = texelFetch(ref_id, currentPos, 0).r;
-    if (currentID < 0 || currentID >= int(maxID)) return;
+	// get depth and ID from splat texture
+    ivec2 currentPixelPos = ivec2(gl_GlobalInvocationID.xy);
+    float currentPixelDepth = texelFetch(splat_depth, currentPixelPos, 0).r;
+    int currentPixelID = texelFetch(splat_id, currentPixelPos,0).r;
 
-    float currentDepth = texelFetch(ref_depth, currentPos, 0).r;
-    vec3 reconstructedPoint = getPos(currentPos, currentDepth);
-    float zc = abs(reconstructedPoint.z);
-    float tau_z = 0.01 * zc; 
+    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || 
+    currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
+    return;
+    
 
-    // --- ADDED: accumulators for weighted finite differences
-    vec3 sumX = vec3(0.0);
-    vec3 sumY = vec3(0.0);
-    float wX = 0.0;
-    float wY = 0.0;
+    // reconstruct points
+    vec3 reconstructedPoint = getPos(currentPixelPos, currentPixelDepth);
 
-    for (int i = -radius; i <= radius; ++i) {
-        for (int j = -radius; j <= radius; ++j) {
-            if (i==0 && j==0) continue;
+    // find and reconstruct neighbors (CROSS)
+    ivec2 leftPos = currentPixelPos + ivec2(-1, 0);
+    ivec2 rightPos = currentPixelPos + ivec2(1, 0);
+    ivec2 upPos = currentPixelPos + ivec2(0, 1);
+    ivec2 downPos = currentPixelPos + ivec2(0, -1);
+    
+    float leftPixelDepth = texelFetch(splat_depth, leftPos, 0).r;
+    float rightPixelDepth = texelFetch(splat_depth, rightPos, 0).r;
+    float upPixelDepth = texelFetch(splat_depth, upPos, 0).r;
+    float downPixelDepth = texelFetch(splat_depth, downPos, 0).r;
+    
+    vec3 leftReconstructedPoint = getPos(leftPos, leftPixelDepth);
+    vec3 rightReconstructedPoint = getPos(rightPos, rightPixelDepth);
+    vec3 upReconstructedPoint = getPos(upPos, upPixelDepth);
+    vec3 downReconstructedPoint = getPos(downPos, downPixelDepth);
+    
+    // gradient calc
+    vec3 dpdx = rightReconstructedPoint-leftReconstructedPoint;
+    vec3 dpdy = upReconstructedPoint-downReconstructedPoint;
 
-            ivec2 offsetPos = currentPos + ivec2(i, j);
-            if (offsetPos.x < 0 || offsetPos.y < 0 ||
-                offsetPos.x >= screenSize.x || offsetPos.y >= screenSize.y)
-                continue;
+    // normal calc 
+    //vec3 normal = cross(dFdx(reconstructedPoint), dFdy(reconstructedPoint));
+    vec3 normal = normalize(cross(dpdx,dpdy));
 
-            int offsetID = texelFetch(splat_id, offsetPos, 0).r;
-            if (offsetID < 0 || offsetID >= int(maxID))
-                continue;
+    atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);
+    atomicAdd(normalBuffer[currentPixelID].normal.y, normal.y);
+    atomicAdd(normalBuffer[currentPixelID].normal.z, normal.z);
+    atomicAdd(normalBuffer[currentPixelID].counter, 1);
 
-            // reconstruct neighbor position and depth with its ID value
-            vec3 neighborPos3D = points[offsetID].position;
-            ivec2 neighborPos = ivec2(round(worldToScreenSpace(neighborPos3D)));
-
-            // --- ADDED: guard for reprojected coords
-            if (neighborPos.x < 0 || neighborPos.y < 0 ||
-                neighborPos.x >= screenSize.x || neighborPos.y >= screenSize.y)
-                continue;
-
-            float neighborDepth = texelFetch(ref_depth, neighborPos, 0).r;
-
-            float zn = abs(getPos(neighborPos, neighborDepth).z);
-            if (abs(zc - zn) > tau_z) continue;
-
-            vec3 reconstructedNeighbor = getPos(neighborPos, neighborDepth);
-
-            // weight calculation
-            float rangeWeight = calculateRangeWeight(reconstructedNeighbor, reconstructedPoint, 0.03 * abs(reconstructedPoint.z));
-            float spatialWeight = calculateSpatialWeight(neighborPos, currentPos, 1.5);
-            float neighborWeight = rangeWeight * spatialWeight;
-
-            vec3 dP = reconstructedNeighbor - reconstructedPoint;
-
-            if (i != 0) {
-                sumX += neighborWeight * dP * float(i);
-                wX   += neighborWeight * abs(float(i));
-            }
-            if (j != 0) {
-                sumY += neighborWeight * dP * float(j);
-                wY   += neighborWeight * abs(float(j));
-            }
-
-            // early exit when all 4 are set (will rarely trigger now)
-            if (haveLeft && haveRight && haveTop && haveDown) break;
-        }
-        if (haveLeft && haveRight && haveTop && haveDown) break;
-    }
-
-    vec3 normal = vec3(0.0);
-    vec3 dPdx = vec3(0.0);
-    vec3 dPdy = vec3(0.0);
-
-    if (wX > 0.0) dPdx = sumX / wX;
-    if (wY > 0.0) dPdy = sumY / wY;
-
-    if (length(dPdx) > 1e-6 && length(dPdy) > 1e-6) {
-        normal = normalize(cross(dPdx, dPdy));
-        if (normal.z < 0.0) normal = -normal;
-    }
-
-    points[currentID].normal = normal;
+    /* debug 
+    float delinearizedDepth = delinearize_depth(currentPixelDepth, zNear, zFar); 
+    vec3 normal = vec3(delinearizedDepth, currentPixelID, 0);
+    points[currentPixelID].normal = normal;
+    */
 }

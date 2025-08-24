@@ -15,5 +15,5 @@ void main()
 {
     vertex_id = ID;
     gl_Position = proj * view * model * vec4(position, 1.0);
-    gl_PointSize = 30.0f;
+    gl_PointSize = 60.0f;
 }

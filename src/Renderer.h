@@ -51,6 +51,7 @@ private:
          Shader* m_pShaderBigSplats = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
          Shader* m_pShaderCalcNormal = nullptr;
+         Shader* m_pShaderNormalAvg = nullptr;
          Shader* m_pShaderNormalCompute = nullptr;
          Shader* m_pShaderPointsNormals = nullptr;
          Shader* m_pDebugTexture = nullptr;
@@ -62,10 +63,12 @@ private:
          GLuint m_quadVAO = 0;
          GLuint m_lineVAO = 0;
          GLuint m_frustumVAO = 0;
-         GLuint m_pointSSBO;
+         GLuint m_pointNormalSSBO;
+         GLuint m_pointAvgSSBO;
 
 private:
-         void ConfigureSSBO();
+         void ConfigureNormalSSBO();
+         void ConfigureAvgSSBO();
          void ConfigureRefFBO();
          void ConfigureSplatFBO();
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
@@ -73,10 +76,8 @@ private:
          GLuint SetupQuadVAO();
          GLuint SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& view);
 
+         void RenderText(float fps, PointCloud pc);
+
          float angle;
 
-         void ReadNormalTexture(std::vector<glm::vec3>& normals);
-         void ReadIDTexture(std::vector<int>& ids);
-         void AssignNormalsToPointCloud(PointCloud& pointCloud);
-         void RenderText(float fps, PointCloud pc);
 };

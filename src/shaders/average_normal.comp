@@ -1,0 +1,28 @@
+#version 450 core
+layout(local_size_x = 8, local_size_y = 8) in;
+
+uniform isampler2D ref_id;
+
+struct Point {
+    int  pointID;
+    vec3 position; float _padA;
+    vec3 color;    float _padB;
+    vec3 normal;   float _padC;
+};
+
+struct NormalBuffer{
+    vec3 normal;
+    int counter;
+};
+
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
+layout(std430, binding = 1) buffer PointBuffer { Point points[]; };
+
+void main(){
+    ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
+    int currentID = texelFetch(ref_id, currentPos, 0).r;
+    
+    if (currentID > 0) {   
+      points[currentID].normal = vec3(normalBuffer[currentID].counter, 0,0);
+    }
+}
