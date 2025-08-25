@@ -1,138 +1,92 @@
-#version 440 core 
+#version 450 core 
+#extension GL_NV_shader_atomic_float : enable
+layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(local_size_x = 16, local_size_y = 16) in; // size of the local invocations per dimension
+uniform sampler2D  ref_depth;
+uniform isampler2D ref_id;
 
-uniform sampler2D depthTex;
-uniform isampler2D idTex;
-uniform vec2 iResolution;
+uniform sampler2D  splat_depth;
+uniform isampler2D splat_id;
+
+uniform ivec2 screenSize;
 uniform mat4 invProj;
 uniform mat4 view;
+uniform mat4 proj;
+uniform mat4 invView;
+uniform float maxID;
 
-uniform float zNear;
 uniform float zFar;
-uniform int numPoints;
+uniform float zNear;
 
-layout(std430, binding = 0) buffer NormalBuffer 
-{
-	vec4 normals[];
+struct NormalBuffer{
+    vec3 normal;
+    int counter;
 };
 
-layout(std430, binding = 1) buffer NormalCountBuffer 
-{
-	uint normalCount[];
-};
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
+
+
+
+float delinearize_depth(float z_buffer_depth, float zNear, float zFar) {
+    float z = z_buffer_depth * 2.0 - 1.0;
+    return (2.0 * zNear * zFar) / (zFar + zNear - z * (zFar - zNear));
+}
 
 vec3 getPos(ivec2 fragCoord, float depth) {
-    
-    //if (depth == 1.0) return vec3(0.0); // background
-    
-    float id = texelFetch(idTex, fragCoord, 0).r;
-    //if (id == -1) discard; // background
-
-    vec2 ndc = (vec2(fragCoord) / iResolution) * 2.0 - 1.0;
-    float ndcDepth = depth * 2.0 - 1.0; 
-    
+    vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
+    float ndcDepth = depth * 2.0 - 1.0;
     vec4 clipSpace = vec4(ndc, ndcDepth, 1.0);
     vec4 viewSpace = invProj * clipSpace;
     viewSpace /= viewSpace.w;
     return viewSpace.xyz;
 }
 
-// linearize depth because depth buffer precision
-float linearizeDepth(float z, float near, float far) {
-    float ndc = z * 2.0 - 1.0;
-    return (2.0 * near * far) / (far + near - ndc * (far - near));
-}
-
-// will be legacy
-vec3 computeNormalNaive(const sampler2D depthTex, ivec2 p) {
-    ivec2 left   = clamp(p - ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 right  = clamp(p + ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 top    = clamp(p + ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 bottom = clamp(p - ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-
-    float dCenter = linearizeDepth(texelFetch(depthTex, p, 0).r, 0.1, 100);
-
-    vec3 l1 = getPos(left,   linearizeDepth(texelFetch(depthTex, left,   0).r, 0.1, 100));
-    vec3 r1 = getPos(right,  linearizeDepth(texelFetch(depthTex, right,  0).r, 0.1, 100));
-    vec3 t1 = getPos(top,    linearizeDepth(texelFetch(depthTex, top,    0).r, 0.1, 100));
-    vec3 b1 = getPos(bottom, linearizeDepth(texelFetch(depthTex, bottom, 0).r ,0.1, 100));
-
-    vec3 dpdx = l1 - r1;
-    vec3 dpdy = t1 - b1;
-
-    return normalize(cross(dpdx, dpdy));
-}
-
-/*
- * Computes a surface normal for a fragment using a triangle fan of neighbors
- * in the depth buffer. For each pair of neighboring points around the center,
- * it forms a triangle and accumulates the cross product. The final normal is
- * the normalized sum of all triangle normals.
- */
-vec3 computeNormalTriangleWeighted(const sampler2D depthTex, ivec2 p) {
-    float centerDepth = texelFetch(depthTex, p, 0).r;
-
-    vec3 centerPos = getPos(p, linearizeDepth(centerDepth, zNear, zFar));
-    vec3 normal = vec3(0.0);
-    float totalWeight = 0.0;
-
-    ivec2 offsets[8] = ivec2[8](
-        ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
-        ivec2(-1,  0),               ivec2(1,  0),
-        ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)
-    );
-
-    for (int i = 0; i < 8; ++i) {
-        ivec2 p1 = clamp(p + offsets[i], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-        ivec2 p2 = clamp(p + offsets[(i + 1) % 8], ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-
-        float d1 = linearizeDepth(texelFetch(depthTex, p1, 0).r, zNear, zFar);
-        float d2 = linearizeDepth(texelFetch(depthTex, p2, 0).r, zNear, zFar);
-        if (d1 == 1.0 || d2 == 1.0) continue;
-
-        vec3 v1 = getPos(p1, d1);
-        vec3 v2 = getPos(p2, d2);
-
-        vec3 triNormal = cross(v2 - centerPos, v1 - centerPos);
-        float weight = length(triNormal); // triangle area approximation
-
-        normal += normalize(triNormal) * weight;
-        totalWeight += weight;
-    }
-
-    return normalize(normal / totalWeight);
-}
-
-vec3 debug_show_depth(const sampler2D depthTex, ivec2 p) {
-    
-    ivec2 left   = clamp(p - ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 right  = clamp(p + ivec2(1, 0), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 top    = clamp(p + ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    ivec2 bottom = clamp(p - ivec2(0, 1), ivec2(0), textureSize(depthTex, 0) - ivec2(1));
-    
-    float depthLeft = texelFetch(depthTex, left, 0).r;
-    float depthRight = texelFetch(depthTex, right, 0).r;
-    float depthTop = texelFetch(depthTex, top, 0).r;
-    float depthBottom = texelFetch(depthTex, top, 0).r;
-
-    return vec3 (depthLeft, depthRight, depthTop);
-}
-
-
 void main() {
-    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
-    vec3 normal = computeNormalNaive(depthTex, fragCoord);
+	// get depth and ID from splat texture
+    ivec2 currentPixelPos = ivec2(gl_GlobalInvocationID.xy);
+    float currentPixelDepth = texelFetch(splat_depth, currentPixelPos, 0).r;
+    int currentPixelID = texelFetch(splat_id, currentPixelPos,0).r;
 
-    mat3 normalMatrix = mat3(transpose(inverse(view)));
-    vec3 normal_world = normalize(normalMatrix * normal);
+    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || 
+    currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
+    return;
+    
 
-    int pointID = texelFetch(idTex, fragCoord, 0).r;
+    // reconstruct points
+    vec3 reconstructedPoint = getPos(currentPixelPos, currentPixelDepth);
 
-    if (pointID < 0 || pointID >= numPoints)
-        return;
+    // find and reconstruct neighbors (CROSS)
+    ivec2 leftPos = currentPixelPos + ivec2(-1, 0);
+    ivec2 rightPos = currentPixelPos + ivec2(1, 0);
+    ivec2 upPos = currentPixelPos + ivec2(0, 1);
+    ivec2 downPos = currentPixelPos + ivec2(0, -1);
+    
+    float leftPixelDepth = texelFetch(splat_depth, leftPos, 0).r;
+    float rightPixelDepth = texelFetch(splat_depth, rightPos, 0).r;
+    float upPixelDepth = texelFetch(splat_depth, upPos, 0).r;
+    float downPixelDepth = texelFetch(splat_depth, downPos, 0).r;
+    
+    vec3 leftReconstructedPoint = getPos(leftPos, leftPixelDepth);
+    vec3 rightReconstructedPoint = getPos(rightPos, rightPixelDepth);
+    vec3 upReconstructedPoint = getPos(upPos, upPixelDepth);
+    vec3 downReconstructedPoint = getPos(downPos, downPixelDepth);
+    
+    // gradient calc
+    vec3 dpdx = rightReconstructedPoint-leftReconstructedPoint;
+    vec3 dpdy = upReconstructedPoint-downReconstructedPoint;
 
-    uint count = atomicAdd(normalCount[pointID], 1);
-    normals[pointID] += vec4(normal_world, 0.0);
+    // normal calc 
+    //vec3 normal = cross(dFdx(reconstructedPoint), dFdy(reconstructedPoint));
+    vec3 normal = normalize(cross(dpdx,dpdy));
+
+    atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);
+    atomicAdd(normalBuffer[currentPixelID].normal.y, normal.y);
+    atomicAdd(normalBuffer[currentPixelID].normal.z, normal.z);
+    atomicAdd(normalBuffer[currentPixelID].counter, 1);
+
+    /* debug 
+    float delinearizedDepth = delinearize_depth(currentPixelDepth, zNear, zFar); 
+    vec3 normal = vec3(delinearizedDepth, currentPixelID, 0);
+    points[currentPixelID].normal = normal;
+    */
 }
-

@@ -25,8 +25,5 @@ glm::vec3 PointCloud::GetNormalByID(int id)
 			return point.m_normal;
 		}
 	}
-
 	return glm::vec3(0.0f);
-
-
 }

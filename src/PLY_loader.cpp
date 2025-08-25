@@ -8,7 +8,6 @@
  * Open the file, parse the header and store encountered properties (x,y,z..). Check the format
  * and extract its content.
  *
- * Binary format is left as a TODO
  *
  */
 

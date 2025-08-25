@@ -12,8 +12,9 @@ public:
     GLuint m_shaderID;;
 
 public:
-    Shader(const char* szVertexPath, const char* szFragmentPath);
-    Shader(const char* szVertexPath, const char* szGeometryPath, const char* szFragmentPath);
+    Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const char* vertexPath, const char* geometryPath, const char* fragmentPath);
+    Shader(const char* computePath);
     ~Shader();
 
     void Use();
