@@ -73,8 +73,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     m_height = height;
 
     // Load point cloud from PLY file
-    PLY_loader ply_loader;
-    m_pointCloud = ply_loader.LoadPLY(ply_path);
+    m_pointCloud = plyLoader.LoadPLY(ply_path);
     m_pointsAmount = m_pointCloud.PointsAmount();
 
     glGenVertexArrays(1, &m_VAO);
@@ -233,7 +232,7 @@ void Renderer::Render(float fps) {
         glUniform2i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "screenSize"), m_width, m_height);
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "InvView"), 1, GL_FALSE,
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invView"), 1, GL_FALSE,
             glm::value_ptr(glm::inverse(view)));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "proj"), 1, GL_FALSE,
             glm::value_ptr(projection));
@@ -288,7 +287,7 @@ void Renderer::Render(float fps) {
         glUniform2i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "screenSize"), m_width, m_height);
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ínvView"), 1, GL_FALSE,
+        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invView"), 1, GL_FALSE,
             glm::value_ptr(glm::inverse(view)));
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "proj"), 1, GL_FALSE,
             glm::value_ptr(projection));
@@ -322,6 +321,8 @@ void Renderer::Render(float fps) {
         std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
         std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
         m_pCamera->HasChanged = false;
+
+        plyLoader.SavePLY("data/custom/output_data/output.ply", m_pointCloud);
 
         // m_pointCloud.m_hasNormals = true;
     }

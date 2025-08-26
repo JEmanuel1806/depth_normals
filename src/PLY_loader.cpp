@@ -216,3 +216,33 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     std::cerr << "Loaded (binary) points: " << cloud.PointsAmount() << std::endl;
     return cloud;
 }
+
+void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
+    
+    std::ofstream plyOutputFile;
+    plyOutputFile.open(path);
+    plyOutputFile << "ply\n";
+    plyOutputFile << "format ascii 1.0\n";
+    plyOutputFile << "comment Created from SavePLY method \n";
+    plyOutputFile << "element vertex " << pointCloud.PointsAmount() << " \n";
+    plyOutputFile << "property float x\n";
+    plyOutputFile << "property float y\n";
+    plyOutputFile << "property float z\n";
+    plyOutputFile << "property float nx\n";
+    plyOutputFile << "property float ny\n";
+    plyOutputFile << "property float nz\n";
+    plyOutputFile << "end_header \n";
+    
+
+    for (int i = 0; i < pointCloud.PointsAmount(); ++i){
+
+        auto point = pointCloud.GetPointByID(i)->GetPosition();
+        auto normal = pointCloud.GetNormalByID(i);
+
+        plyOutputFile << point.x << " " << point.y << " " << point.z << " "
+            << normal.x << " " << normal.y << " " << normal.z << "\n";
+    }
+
+    plyOutputFile.close();
+
+}

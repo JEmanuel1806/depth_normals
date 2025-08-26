@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 
+
 #include "PointCloud.h"
 
 
@@ -19,6 +20,7 @@ public:
 	bool m_hasNormals = false;
 
 	PointCloud LoadPLY(const std::string& filepath);
+	void SavePLY(std::string path, PointCloud pointCloud);
 	
 private:
 	//PointCloud ExtractBinaryData(std::ifstream& ply_file);

@@ -60,7 +60,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer_left->Start("data/custom/no_normals/plane_no_normals.ply", width/2, height);
 
     // ground truth
-    renderer_right->Start("data/custom/ground_truth/plane.ply", width/2, height);
+    renderer_right->Start("data/custom/ground_truth/dog7_final.ply", width/2, height);
 }
 
 App::~App() {

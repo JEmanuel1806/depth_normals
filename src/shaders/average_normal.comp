@@ -22,7 +22,7 @@ void main(){
     ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
     int currentID = texelFetch(ref_id, currentPos, 0).r;
     
-    if (currentID > 0) {   
+    if (currentID >= 0) {   
       points[currentID].normal = normalize(vec3(normalBuffer[currentID].normal/normalBuffer[currentID].counter));
     }
 }

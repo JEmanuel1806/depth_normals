@@ -39,6 +39,8 @@ public:
          float m_zNear = 0.1f;
          float m_zFar = 100.0f;
 
+         PLY_loader plyLoader;
+
 private:
          Camera* m_pCamera = nullptr;
 
