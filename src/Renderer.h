@@ -36,6 +36,7 @@ public:
          glm::vec3 expectedNormal;
 
          size_t m_pointsAmount = 0;
+         size_t m_pointsAmountGT = 0;
 
          float splatSize = 50.0f;
          float m_zNear = 0.1f;
@@ -47,6 +48,7 @@ private:
          Camera* m_pCamera = nullptr;
 
          PointCloud m_pointCloud;
+         PointCloud m_pointCloudGT; // ground truth
 
          unsigned int m_height;
          unsigned int m_width;
@@ -68,10 +70,12 @@ private:
          GLuint m_lineVAO = 0;
          GLuint m_frustumVAO = 0;
          GLuint m_pointNormalSSBO;
+         GLuint m_pointGTSSBO;
          GLuint m_pointAvgSSBO;
 
 private:
          void ConfigureNormalSSBO();
+         void ConfigureGTSSBO();
          void ConfigureAvgSSBO();
          void ConfigureRefFBO();
          void ConfigureSplatFBO();

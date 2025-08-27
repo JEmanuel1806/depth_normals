@@ -56,7 +56,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer = new Renderer(camera);
 
     // calculation
-    renderer->Start("data/custom/no_normals/dog7_final.ply", width, height);
+    renderer->Start("data/custom/no_normals/dog7_final.ply",  width, height);
 
 }
 

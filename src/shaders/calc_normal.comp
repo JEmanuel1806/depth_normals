@@ -77,7 +77,8 @@ void main() {
 
     // normal calc 
     //vec3 normal = cross(dFdx(reconstructedPoint), dFdy(reconstructedPoint));
-    vec3 normal = normalize(cross(dpdx,dpdy));
+    
+    vec3 normal = normalize(mat3(invView) * normalize(cross(dpdx,dpdy)));
 
     atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);
     atomicAdd(normalBuffer[currentPixelID].normal.y, normal.y);

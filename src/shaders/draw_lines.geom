@@ -11,7 +11,7 @@ uniform mat4 model;
 
 out vec3 fNormal;
 
-float scaleFactor = 0.4;
+float scaleFactor = 0.1;
 
 // for each point generate a line starting from the point and ending with a scale factor of the normal
 void main()

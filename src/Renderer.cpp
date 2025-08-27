@@ -72,9 +72,26 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     m_width = width;
     m_height = height;
 
+    // take ply_path and replace path with "ground truth" to get reference model from GT folder
+    std::string ply_path_reference = ply_path;
+    std::string term = "no_normals";
+
+    size_t pos = ply_path_reference.find("no_normals");
+
+    if (pos != std::string::npos) {
+        ply_path_reference.replace(pos,term.length(),"ground_truth");
+    }
+ 
+
     // Load point cloud from PLY file
-    m_pointCloud = plyLoader.LoadPLY(ply_path);
+    m_pointCloud = plyLoader.LoadPLY(ply_path); // no normal model, to be calculated
+    m_pointCloudGT = plyLoader.LoadPLY(ply_path_reference); // ground truth
     m_pointsAmount = m_pointCloud.PointsAmount();
+    m_pointsAmountGT = m_pointCloudGT.PointsAmount();
+
+    if (m_pointsAmount != m_pointsAmountGT) {
+        std::cerr << "Warning. Point cloud sizes dont match! \n";
+    }
 
     glGenVertexArrays(1, &m_VAO);
     glGenBuffers(1, &m_VBO);
@@ -108,6 +125,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     ConfigureSplatFBO();
     ConfigureAvgSSBO();
     ConfigureNormalSSBO();
+    ConfigureGTSSBO();
     
     GLint currentFB;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFB);
@@ -182,7 +200,6 @@ void Renderer::Render(float fps) {
         //glDepthMask(GL_FALSE);
         //glDisable(GL_BLEND);
 
-        /* only activate for debug!*/
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         
@@ -299,7 +316,8 @@ void Renderer::Render(float fps) {
 
         // compute shader vars
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointAvgSSBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
 
         glDispatchCompute(workGroupX, workGroupY, 1);
 
@@ -511,6 +529,15 @@ void Renderer::ConfigureNormalSSBO() {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointNormalSSBO);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data(), GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
+
+}
+
+void Renderer::ConfigureGTSSBO() {
+
+    glGenBuffers(1, &m_pointGTSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointGTSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Point) * m_pointsAmountGT, m_pointCloudGT.m_points.data(), GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointGTSSBO);
 
 }
 

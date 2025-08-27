@@ -16,7 +16,10 @@ struct NormalBuffer{
 };
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
-layout(std430, binding = 1) buffer PointBuffer { Point points[]; };
+layout(std430, binding = 1) buffer PointGTBuffer { Point pointsGT[]; };
+layout(std430, binding = 2) buffer PointBuffer { Point points[]; };
+
+
 
 void main(){
     ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
@@ -24,5 +27,23 @@ void main(){
     
     if (currentID >= 0) {   
       points[currentID].normal = normalize(vec3(normalBuffer[currentID].normal/normalBuffer[currentID].counter));
+    
+
+        float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0); 
+        float theta = degrees(acos(d));
+        //if (d < 0.0) { d = -d; }  
+
+        if(theta >= 0.01 && theta <= 5){
+            points[currentID].color = vec3(0, 1, 0);
+        }
+        else if(theta >= 0.01 && theta <= 30.0){
+            points[currentID].color = vec3(1, 1, 0);
+        }
+        else if(theta > 30.0 && theta <= 180) {
+            points[currentID].color = vec3(1, 0, 0);
+        }
+        else{
+            points[currentID].color = vec3(0, 0, 0); //occluded or errors
+        }
     }
 }
