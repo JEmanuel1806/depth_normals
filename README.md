@@ -60,7 +60,8 @@ Ground‑truth normals (if present) are used for comparison; otherwise only esti
 6. **GT Comparison**: compute angle (flip‑tolerant optional), store for visualization
 7. **Visualization**: large splats; color by error angle (or show lines/textures/ID maps)
 
-<img width="1916" height="1124" alt="image" src="https://github.com/user-attachments/assets/1f3225ac-acf2-4f0a-9646-d4f8528b2d0b" />
+<img width="1904" height="1068" alt="image" src="https://github.com/user-attachments/assets/9aaa3cd7-2c64-460a-9ef8-51092bfe2ce0" />
+
 
 
 ## Goal
