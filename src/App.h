@@ -29,7 +29,7 @@ public:
 	bool key_pressed = false;
 	bool left_mouse_pressed = false;
 	bool right_mouse_pressed = false;
-	float lastX = width /2 ;
+	float lastX = width;
 	float lastY = height;
 	
 	App(unsigned int w, unsigned int h);
@@ -41,6 +41,5 @@ public:
 	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 private:
 	GLFWwindow* window;
-	Renderer* renderer_left;
-	Renderer* renderer_right;
+	Renderer* renderer;
 };

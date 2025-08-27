@@ -53,19 +53,15 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
         });
 
     camera = new Camera(glm::vec3(0.0f, 0.0f, 4.0f));
-    renderer_left = new Renderer(camera);
-    renderer_right = new Renderer(camera);
+    renderer = new Renderer(camera);
 
     // calculation
-    renderer_left->Start("data/custom/no_normals/dog7_final.ply", width/2, height);
+    renderer->Start("data/custom/no_normals/dog7_final.ply", width, height);
 
-    // ground truth
-    renderer_right->Start("data/custom/ground_truth/dog7_final.ply", width/2, height);
 }
 
 App::~App() {
-    delete renderer_left;
-    delete renderer_right;
+    delete renderer;
     delete camera;
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -82,15 +78,10 @@ void App::run() {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
        
-        int viewportWidth = width / 2;
+        int viewportWidth = width;
 
-        // left viewport
         glViewport(0, 0, viewportWidth, height);
-        renderer_left->Render(fps);
-
-        // right viewport
-        glViewport(viewportWidth, 0, viewportWidth, height);
-        renderer_right->Render(fps);
+        renderer->Render(fps);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -118,15 +109,15 @@ void App::processInput() {
         };
 
     // debugging the normals
-    toggle(GLFW_KEY_N, renderer_left->m_showNormals);
-    renderer_right->m_showNormals = renderer_left->m_showNormals;
+    toggle(GLFW_KEY_N, renderer->m_showNormals);
+    renderer->m_showNormals;
 
     // debugging the textures
-    toggle(GLFW_KEY_I, renderer_left->m_showIDMap);
-    renderer_right->m_showIDMap = renderer_left->m_showIDMap;
+    toggle(GLFW_KEY_I, renderer->m_showIDMap);
+    renderer->m_showIDMap;
 
     if (isPressed(GLFW_KEY_S) && (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) && !key_pressed) {
-        renderer_left->saveToPLY = true;   
+        renderer->saveToPLY = true;   
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
@@ -134,41 +125,37 @@ void App::processInput() {
     }
 
     if (isPressed(GLFW_KEY_LEFT_ALT)) {
-        renderer_left->m_showPoints = false;
+        renderer->m_showPoints = false;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE) {
-        renderer_left->m_showPoints = true;
+        renderer->m_showPoints = true;
     }
 
     // adjust point size of pointcloud 
     if (isPressed(GLFW_KEY_KP_ADD) && !key_pressed) {
-        renderer_left->splatSize++;
-        renderer_right->splatSize++;
+        renderer->splatSize++;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_RELEASE) key_pressed = false;
 
     if (isPressed(GLFW_KEY_KP_SUBTRACT) && !key_pressed) {
-        renderer_left->splatSize--;
-        renderer_right->splatSize--;
+        renderer->splatSize--;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_RELEASE) key_pressed = false;
 
     // visualize frustum cone
-    toggle(GLFW_KEY_F, renderer_left->m_showFrustum);
-    renderer_right->m_showFrustum = renderer_left->m_showFrustum;
+    toggle(GLFW_KEY_F, renderer->m_showFrustum);
+    renderer->m_showFrustum;
 
-    toggle(GLFW_KEY_TAB, renderer_left->m_recalculate = false);
+    toggle(GLFW_KEY_TAB, renderer->m_recalculate = false);
 
     // rotation
     bool left = isPressed(GLFW_KEY_LEFT);
     bool right = isPressed(GLFW_KEY_RIGHT);
-    renderer_left->m_spinPointCloudLeft = left;
-    renderer_left->m_spinPointCloudRight = right;
-    renderer_right->m_spinPointCloudLeft = left;
-    renderer_right->m_spinPointCloudRight = right;
+    renderer->m_spinPointCloudLeft = left;
+    renderer->m_spinPointCloudRight = right;
 }
 
 void App::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
