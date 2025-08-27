@@ -16,12 +16,14 @@ public:
          void Render(float fps);
 
          bool m_showNormals = false;
+         bool m_showPoints = true;
          bool m_showDepthOnly = false;
          bool m_recalculate = true;
          bool m_showIDMap = false;
          bool m_showFrustum = false;
          bool m_spinPointCloudRight = false;
          bool m_spinPointCloudLeft = false;
+         bool saveToPLY = false;
 
          GLuint m_fboRef = 0;
          GLuint m_depthTexRef = 0;

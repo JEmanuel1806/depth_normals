@@ -218,13 +218,27 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
 }
 
 void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
+
+    int pointsWritten = pointCloud.PointsAmount();
+
+    for (int i = 0; i < pointCloud.PointsAmount(); ++i) {
+        auto point = pointCloud.GetPointByID(i)->GetPosition();
+        auto normal = pointCloud.GetNormalByID(i);
+
+        if (std::isnan(normal.x) || (normal.x == 0 && normal.y == 0 && normal.z == 0)) {
+            pointsWritten--;
+        }
+
+    }
+
+    std::cout << pointCloud.PointsAmount() - pointsWritten << " have been skipped.\n";
     
     std::ofstream plyOutputFile;
     plyOutputFile.open(path);
     plyOutputFile << "ply\n";
     plyOutputFile << "format ascii 1.0\n";
     plyOutputFile << "comment Created from SavePLY method \n";
-    plyOutputFile << "element vertex " << pointCloud.PointsAmount() << " \n";
+    plyOutputFile << "element vertex " << pointsWritten << " \n";
     plyOutputFile << "property float x\n";
     plyOutputFile << "property float y\n";
     plyOutputFile << "property float z\n";
@@ -239,9 +253,12 @@ void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
         auto point = pointCloud.GetPointByID(i)->GetPosition();
         auto normal = pointCloud.GetNormalByID(i);
 
-        plyOutputFile << point.x << " " << point.y << " " << point.z << " "
-            << normal.x << " " << normal.y << " " << normal.z << "\n";
+        if (!std::isnan(normal.x) && !(normal.x == 0 && normal.y == 0 && normal.z == 0)) {
+            plyOutputFile << point.x << " " << point.y << " " << point.z << " "
+                << normal.x << " " << normal.y << " " << normal.z << "\n";
+            }
     }
+
 
     plyOutputFile.close();
 

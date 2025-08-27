@@ -57,7 +57,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer_right = new Renderer(camera);
 
     // calculation
-    renderer_left->Start("data/custom/no_normals/plane_no_normals.ply", width/2, height);
+    renderer_left->Start("data/custom/no_normals/dog7_final.ply", width/2, height);
 
     // ground truth
     renderer_right->Start("data/custom/ground_truth/dog7_final.ply", width/2, height);
@@ -124,6 +124,22 @@ void App::processInput() {
     // debugging the textures
     toggle(GLFW_KEY_I, renderer_left->m_showIDMap);
     renderer_right->m_showIDMap = renderer_left->m_showIDMap;
+
+    if (isPressed(GLFW_KEY_S) && (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) && !key_pressed) {
+        renderer_left->saveToPLY = true;   
+        key_pressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
+        key_pressed = false;
+    }
+
+    if (isPressed(GLFW_KEY_LEFT_ALT)) {
+        renderer_left->m_showPoints = false;
+        key_pressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE) {
+        renderer_left->m_showPoints = true;
+    }
 
     // adjust point size of pointcloud 
     if (isPressed(GLFW_KEY_KP_ADD) && !key_pressed) {

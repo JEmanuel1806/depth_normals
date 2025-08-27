@@ -322,8 +322,6 @@ void Renderer::Render(float fps) {
         std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
         m_pCamera->HasChanged = false;
 
-        plyLoader.SavePLY("data/custom/output_data/output.ply", m_pointCloud);
-
         // m_pointCloud.m_hasNormals = true;
     }
 
@@ -336,6 +334,7 @@ void Renderer::Render(float fps) {
 
     // for debugging any texture quickly
     if (m_showIDMap == true) {
+        m_showPoints = false;
         m_pDebugTexture->Use();
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
@@ -385,7 +384,7 @@ void Renderer::Render(float fps) {
             glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
         }
     }
-    else {
+    else if(m_showPoints) {
         m_pShaderPointsOnly->Use();
         glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
             glm::value_ptr(view));
@@ -398,6 +397,12 @@ void Renderer::Render(float fps) {
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
     }
     glBindVertexArray(0);
+
+    if (saveToPLY) {
+        plyLoader.SavePLY("data/custom/output_data/output.ply", m_pointCloud);
+        std::cout << "Exported ply file! \n";
+        saveToPLY = false;
+    }
 
     RenderText(fps, m_pointCloud);
 }
