@@ -15,6 +15,8 @@ public:
          void Start(std::string ply_path, unsigned int width, unsigned int height);
          void Render(float fps);
 
+         GLuint qTotal, qRef, qAcc, qFin, qSplat , qReadBack, t0, t1; //performance query metrics
+
          bool m_showNormals = false;
          bool m_showPoints = true;
          bool m_showDepthOnly = false;
@@ -38,7 +40,7 @@ public:
          size_t m_pointsAmount = 0;
          size_t m_pointsAmountGT = 0;
 
-         float splatSize = 50.0f;
+         float splatSize = 3.0f;
          float m_zNear = 0.1f;
          float m_zFar = 100.0f;
 
@@ -84,7 +86,7 @@ private:
          GLuint SetupQuadVAO();
          GLuint SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& view);
 
-         void RenderText(float fps, PointCloud pc);
+         void RenderText(float fps, PointCloud pc, PointCloud pcGT);
 
          float angle;
 

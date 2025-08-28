@@ -52,7 +52,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
             ->mouse_button_callback(win, button, action, mods);
         });
 
-    camera = new Camera(glm::vec3(0.0f, 0.0f, 4.0f));
+    camera = new Camera(glm::vec3(0.0f, 0.0f, 6.0f));
     renderer = new Renderer(camera);
 
     // calculation

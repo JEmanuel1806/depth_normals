@@ -72,6 +72,14 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
     m_width = width;
     m_height = height;
 
+    glGenQueries(1, &qRef);
+    glGenQueries(1, &qSplat);
+    glGenQueries(1, &qAcc);
+    glGenQueries(1, &qFin);
+    glGenQueries(1, &qReadBack);
+    glGenQueries(1, &t0);
+    glGenQueries(1, &t1);
+
     // take ply_path and replace path with "ground truth" to get reference model from GT folder
     std::string ply_path_reference = ply_path;
     std::string term = "no_normals";
@@ -169,178 +177,231 @@ void Renderer::Render(float fps) {
 
     expectedNormal = m_pointCloud.GetNormalByID(200);
 
+    std::vector<float> cameraAngles = { 0, 45, 90, 135, 180, 225, 270, 315 };
+
     glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
 
     glClearColor(0.141f, 0.149f, 0.192f, 1.0f);
 
     // if its ground truth (point cloud with normals) dont calculate obv
     // Only calculate if "TAB" is pressed (=Recalculate on) to prevent LAG
-
+    
     if (!m_pointCloud.m_hasNormals && m_recalculate) {
+          for(int i = 0; i < cameraAngles.size(); ++i) {
 
-        // First pass: render point cloud to fill depth and ID textures (reference textures)
-        glBindFramebuffer(GL_FRAMEBUFFER, m_fboRef);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        m_pShaderDepth->Use();  // use depth_pass shader
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE,
-            glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE,
-            glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
-            glm::value_ptr(model));
-
-        glBindVertexArray(m_VAO);
-        glDrawArrays(GL_POINTS, 0, m_pointsAmount);
-        glBindVertexArray(0);
-
-        // Second pass: render point cloud with bigger splats and store to 2 textures (splat textures)
-        glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
-        //glDepthMask(GL_FALSE);
-        //glDisable(GL_BLEND);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-        
-        m_pShaderBigSplats->Use();  
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
-            glm::value_ptr(view));                
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "proj"), 1, GL_FALSE,
-            glm::value_ptr(projection));          
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "model"), 1, GL_FALSE,
-            glm::value_ptr(model));
-        glUniform1f(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "pointSize"), splatSize);
-        
-        glBindVertexArray(m_VAO);
-        glDrawArrays(GL_POINTS, 0, m_pointsAmount);
-        glBindVertexArray(0);
-
-        // Third pass: compute normals from depth buffer, calculate in compute shader 
-
-        glDisable(GL_DEPTH_TEST);
-
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
-        glUseProgram(m_pShaderNormalCompute->m_shaderID);
-
-        // reference textures
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "ref_depth"), 0);
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m_idTexRef);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "ref_id"), 1);
-
-        // splat textures
-
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_depth"), 2);
-
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_id"), 3);
-
-        // other uniforms
-
-        glUniform2i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "screenSize"), m_width, m_height);
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "view"), 1, GL_FALSE,
-            glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invView"), 1, GL_FALSE,
-            glm::value_ptr(glm::inverse(view)));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "proj"), 1, GL_FALSE,
-            glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invProj"), 1,
-            GL_FALSE, glm::value_ptr(glm::inverse(projection)));
-        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zNear"), m_zNear);
-        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
-        glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
+            glQueryCounter(t0, GL_TIMESTAMP);
 
 
-        // compute shader vars
+            // Prestep: Adjust the view matrix dependent on the current view iteration
+            view = glm::rotate(view, glm::radians(cameraAngles[i]), glm::vec3(0.0f, 1.0f, 0.0f));
 
-        GLuint workGroupX = (m_width + 7) / 8;
-        GLuint workGroupY = (m_height + 7) / 8;
-        glClearNamedBufferData(m_pointNormalSSBO, GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
+            // First pass: render point cloud to fill depth and ID textures (reference textures)
+            glBeginQuery(GL_TIME_ELAPSED, qRef);
+            glBindFramebuffer(GL_FRAMEBUFFER, m_fboRef);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
 
-        glDispatchCompute(workGroupX, workGroupY, 1);
+            m_pShaderDepth->Use();  // use depth_pass shader
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE,
+                glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE,
+                glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
+                glm::value_ptr(model));
 
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            glBindVertexArray(m_VAO);
+            glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+            glBindVertexArray(0);
+            glEndQuery(GL_TIME_ELAPSED);
+            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-        std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            // Second pass: render point cloud with bigger splats and store to 2 textures (splat textures)
+            glBeginQuery(GL_TIME_ELAPSED, qSplat);
+            glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
+            //glDepthMask(GL_FALSE);
+            //glDisable(GL_BLEND);
 
-        // Fourth Pass: Average the accumulated normals from pass before
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
+            
+            m_pShaderBigSplats->Use();  
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
+                glm::value_ptr(view));                
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "proj"), 1, GL_FALSE,
+                glm::value_ptr(projection));          
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "model"), 1, GL_FALSE,
+                glm::value_ptr(model));
+            glUniform1f(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "pointSize"), splatSize);
+            
+            glBindVertexArray(m_VAO);
+            glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+            glBindVertexArray(0);
+            glEndQuery(GL_TIME_ELAPSED);
+            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
-        glUseProgram(m_pShaderNormalAvg->m_shaderID);
 
-        // reference textures
+            // Third pass: compute normals from depth buffer, calculate in compute shader 
+            glBeginQuery(GL_TIME_ELAPSED, qAcc);
+            glDisable(GL_DEPTH_TEST);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_depth"), 0);
+            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
+            glUseProgram(m_pShaderNormalCompute->m_shaderID);
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m_idTexRef);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_id"), 1);
+            // reference textures
 
-        // splat textures
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "ref_depth"), 0);
 
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_depth"), 2);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, m_idTexRef);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "ref_id"), 1);
 
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
-        glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_id"), 3);
+            // splat textures
 
-        // other uniforms
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_depth"), 2);
 
-        glUniform2i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "screenSize"), m_width, m_height);
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "view"), 1, GL_FALSE,
-            glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invView"), 1, GL_FALSE,
-            glm::value_ptr(glm::inverse(view)));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "proj"), 1, GL_FALSE,
-            glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invProj"), 1,
-            GL_FALSE, glm::value_ptr(glm::inverse(projection)));
-        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
-        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
-        glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "splat_id"), 3);
 
-        // compute shader vars
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
+            // other uniforms
 
-        glDispatchCompute(workGroupX, workGroupY, 1);
+            glUniform2i(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "screenSize"), m_width, m_height);
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "view"), 1, GL_FALSE,
+                glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invView"), 1, GL_FALSE,
+                glm::value_ptr(glm::inverse(view)));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "proj"), 1, GL_FALSE,
+                glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "invProj"), 1,
+                GL_FALSE, glm::value_ptr(glm::inverse(projection)));
+            glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zNear"), m_zNear);
+            glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
+            glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
 
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-        std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            // compute shader vars
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
-        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
+            GLuint workGroupX = (m_width + 7) / 8;
+            GLuint workGroupY = (m_height + 7) / 8;
+            glClearNamedBufferData(m_pointNormalSSBO, GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 
-        // back to VBO for arrow vis
-        glBindBuffer(GL_COPY_READ_BUFFER, m_pointAvgSSBO);
-        glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
-        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
-   
-        Point p = m_pointCloud.m_points[200];
-        std::cout << "Point ID: " << p.m_pointID << std::endl;
-        std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
-        std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
-        std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
-        m_pCamera->HasChanged = false;
+            glDispatchCompute(workGroupX, workGroupY, 1);
 
-        // m_pointCloud.m_hasNormals = true;
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            glEndQuery(GL_TIME_ELAPSED);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            // Fourth Pass: Average the accumulated normals from pass before
+            glBeginQuery(GL_TIME_ELAPSED, qFin);
+            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
+            glUseProgram(m_pShaderNormalAvg->m_shaderID);
+
+            // reference textures
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_depth"), 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, m_idTexRef);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_id"), 1);
+
+            // splat textures
+
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_depth"), 2);
+
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+            glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_id"), 3);
+
+            // other uniforms
+
+            glUniform2i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "screenSize"), m_width, m_height);
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "view"), 1, GL_FALSE,
+                glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invView"), 1, GL_FALSE,
+                glm::value_ptr(glm::inverse(view)));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "proj"), 1, GL_FALSE,
+                glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invProj"), 1,
+                GL_FALSE, glm::value_ptr(glm::inverse(projection)));
+            glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
+            glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
+            glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
+
+            // compute shader vars
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
+
+            glDispatchCompute(workGroupX, workGroupY, 1);
+
+            glEndQuery(GL_TIME_ELAPSED);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            
+
+            std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            glBeginQuery(GL_TIME_ELAPSED, qReadBack);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
+            glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
+
+            // back to VBO for arrow vis
+            glBindBuffer(GL_COPY_READ_BUFFER, m_pointAvgSSBO);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
+            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
+
+            glEndQuery(GL_TIME_ELAPSED);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            glQueryCounter(t1, GL_TIMESTAMP);
+
+            Point p = m_pointCloud.m_points[200];
+            std::cout << "Point ID: " << p.m_pointID << std::endl;
+            std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
+            std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
+            std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
+            m_pCamera->HasChanged = false;
+
+
+            GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0,  ts0 = 0, ts1 = 0;
+            glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
+            glGetQueryObjectui64v(qSplat, GL_QUERY_RESULT, &nsSplat);
+            glGetQueryObjectui64v(qAcc, GL_QUERY_RESULT, &nsAcc);
+            glGetQueryObjectui64v(qFin, GL_QUERY_RESULT, &nsAvg);
+            glGetQueryObjectui64v(qReadBack, GL_QUERY_RESULT, &nsRB);
+            glGetQueryObjectui64v(t0, GL_QUERY_RESULT, &ts0);
+            glGetQueryObjectui64v(t1, GL_QUERY_RESULT, &ts1);
+
+            double msRef = nsRef / 1e6;
+            double msSplat = nsSplat / 1e6;
+            double msAcc = nsAcc / 1e6;
+            double msAvg = nsAvg / 1e6;
+            double msRB = nsRB / 1e6;
+            double msTotal = (ts1 - ts0) / 1e6;
+
+
+            std::cout << "Depth Tex  : " << msRef << " ms\n"
+                << "Generate Splats: " << msSplat << " ms\n"
+                << "Accumulate Normals  : " << msAcc << " ms\n"
+                << "Final Averaging  : " << msAvg << " ms\n"
+                << "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
+                << "Total (no Readback): " << msTotal - msRB << " ms  ->  " << 1000 / (msTotal - msRB) << " FPS\n"
+                << "Readback to VBO for vis: " << msRB << " ms\n";
+
+            // m_pointCloud.m_hasNormals = true;
+        }
     }
 
     // Final pass: visualize the point cloud with or without normals, press N to
@@ -422,7 +483,7 @@ void Renderer::Render(float fps) {
         saveToPLY = false;
     }
 
-    RenderText(fps, m_pointCloud);
+    RenderText(fps, m_pointCloud, m_pointCloudGT);
 }
 
 // VAO for the normal lines
@@ -654,7 +715,7 @@ void Renderer::ConfigureSplatFBO() {
  */
 
 
-void Renderer::RenderText(float fps, PointCloud pc ) {
+void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT ) {
     glUseProgram(0);
 
     // Set up orthographic projection for 2D screen-space rendering (e.g., text)
@@ -668,7 +729,8 @@ void Renderer::RenderText(float fps, PointCloud pc ) {
     ss << "FPS: " << fps
         << "\nPoints: " << m_pointsAmount
         << "\nSplat Size: " << splatSize
-        << "\nNormal (Point 200): " << glm::to_string(pc.GetNormalByID(200));
+        << "\nNormal (Point 200): " << glm::to_string(pc.GetNormalByID(200))
+        << "\nExpected (Point 200): " << glm::to_string(pcGT.GetNormalByID(200));
     std::string text = ss.str();
 
     static char buffer[99999];
