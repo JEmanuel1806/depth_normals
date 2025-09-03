@@ -1,4 +1,4 @@
-﻿# Point Cloud Normal Calculation and Visualization 
+﻿﻿# Point Cloud Normal Calculation and Visualization 
 
 This project calculates **surface normals** for a 3D point cloud using a **screen‑space depth buffer** and visualizes them in OpenGL. It supports both **ground‑truth** and **calculated** normals and offers **visual debugging tools** to analyze and compare the normal estimation.
 
@@ -60,7 +60,8 @@ Ground‑truth normals (if present) are used for comparison; otherwise only esti
 6. **GT Comparison**: compute angle (flip‑tolerant optional), store for visualization
 7. **Visualization**: large splats; color by error angle (or show lines/textures/ID maps)
 
-<img width="1916" height="1124" alt="image" src="https://github.com/user-attachments/assets/1f3225ac-acf2-4f0a-9646-d4f8528b2d0b" />
+<img width="1895" height="1065" alt="image" src="https://github.com/user-attachments/assets/b402ae80-85f0-4db3-8323-fdd1e0a4a9f5" />
+
 
 
 ## Goal

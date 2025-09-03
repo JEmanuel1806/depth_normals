@@ -29,7 +29,7 @@ Renderer::Renderer(Camera* cam) {
     m_VBO = 0;
     m_lineVAO = 0;
     m_quadVAO = 0;
-    m_frustumVAO = 0;
+    m_AABO_VAO = 0;
 }
 
 Renderer::~Renderer() {
@@ -45,7 +45,7 @@ Renderer::~Renderer() {
     glDeleteBuffers(1, &m_VBO);
     glDeleteVertexArrays(1, &m_lineVAO);
     glDeleteVertexArrays(1, &m_quadVAO);
-    glDeleteVertexArrays(1, &m_frustumVAO);
+    glDeleteVertexArrays(1, &m_AABO_VAO);
 }
 
 /* -------------------------------------------------------------------------
@@ -67,7 +67,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
         "src/shaders/draw_lines.frag");
     m_pDebugTexture =
         new Shader("src/shaders/debug/debug_id_tex.vert", "src/shaders/debug/debug_id_tex.frag");
-    m_pDrawFrustum = new Shader("src/shaders/draw_frustum.vert", "src/shaders/draw_frustum.frag");
+    m_pDrawAABB = new Shader("src/shaders/draw_AABB.vert", "src/shaders/draw_AABB.frag");
 
     m_width = width;
     m_height = height;
@@ -123,17 +123,15 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 
     m_lineVAO = SetupLineVAO();
     m_quadVAO = SetupQuadVAO();
-    
-    // for FRUSTUM
-    glm::mat4 projection =
-        glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
-    m_frustumVAO = SetupFrustumVAO(projection, m_pCamera->GetViewMatrix());
-    
+        
     ConfigureRefFBO();
     ConfigureSplatFBO();
     ConfigureAvgSSBO();
     ConfigureNormalSSBO();
     ConfigureGTSSBO();
+
+    aabb = CalcAABB(m_pointCloud); // Bounding Box of Point Cloud
+    SetupBBoxVAO(aabb);
     
     GLint currentFB;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFB);
@@ -183,17 +181,57 @@ void Renderer::Render(float fps) {
 
     glClearColor(0.141f, 0.149f, 0.192f, 1.0f);
 
+    // position the frame capture camera in relation to the Bounding Box of the point cloud -> guarnatee consistent view
+
+    float fovY = glm::radians(m_pCamera->m_zoom);
+    float aspect = float(m_width) / float(m_height);
+    float fovX = 2.0f * atan(tan(fovY * 0.5f) * aspect);
+
+    float d_y = aabb.extent().y / tan(fovY * 0.5f);
+    float d_x = aabb.extent().x / tan(fovX * 0.5f);
+    
+    float radius = glm::length(aabb.extent());  
+    float distance = radius / sin(fovY * 0.5f);
+    distance *= 1.2f; 
+
+    glm::vec3 baseCamPos = aabb.center() + glm::vec3(0, 0, distance);
+    glm::mat4 baseView = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
+
+    //view = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
+    //view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
+
     // if its ground truth (point cloud with normals) dont calculate obv
     // Only calculate if "TAB" is pressed (=Recalculate on) to prevent LAG
     
     if (!m_pointCloud.m_hasNormals && m_recalculate) {
-          for(int i = 0; i < cameraAngles.size(); ++i) {
+        int nHoriz = (int)cameraAngles.size();
 
+        // +4: Top, Bottom, 45° oben, 45° unten
+        for (int i = 0; i < nHoriz + 4; ++i) {
             glQueryCounter(t0, GL_TIMESTAMP);
 
+            glm::mat4 view = baseView;
 
-            // Prestep: Adjust the view matrix dependent on the current view iteration
-            view = glm::rotate(view, glm::radians(cameraAngles[i]), glm::vec3(0.0f, 1.0f, 0.0f));
+            // horizontale Rotationen
+            if (i < nHoriz) {
+                view = glm::rotate(view, glm::radians(cameraAngles[i]), glm::vec3(0, 1, 0));
+            }
+            // Top
+            else if (i == nHoriz) {
+                view = glm::rotate(view, glm::radians(+90.0f), glm::vec3(1, 0, 0));
+            }
+            // Bottom
+            else if (i == nHoriz + 1) {
+                view = glm::rotate(view, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+            }
+            // Schräg von oben (+45°)
+            else if (i == nHoriz + 2) {
+                view = glm::rotate(view, glm::radians(+45.0f), glm::vec3(1, 0, 0));
+            }
+            // Schräg von unten (–45°)
+            else if (i == nHoriz + 3) {
+                view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
+            }
 
             // First pass: render point cloud to fill depth and ID textures (reference textures)
             glBeginQuery(GL_TIME_ELAPSED, qRef);
@@ -426,6 +464,19 @@ void Renderer::Render(float fps) {
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
+    if (m_showAABB == true) {
+        // Show Bounding Box
+
+        m_pDrawAABB->Use();
+
+        glUniformMatrix4fv(glGetUniformLocation(m_pDrawAABB->m_shaderID, "view"), 1, GL_FALSE,
+            glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(m_pDrawAABB->m_shaderID, "proj"), 1, GL_FALSE,
+            glm::value_ptr(projection));
+        glBindVertexArray(m_AABO_VAO);
+        glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    }
+
     if (m_showNormals) {
         // draw white points
         m_pShaderPointsOnly->Use();
@@ -449,19 +500,6 @@ void Renderer::Render(float fps) {
             GL_FALSE, glm::value_ptr(model));
         glBindVertexArray(m_lineVAO);
         glDrawArrays(GL_POINTS, 0, m_pointsAmount);
-
-        if (m_showFrustum == true) {
-            // Show Viewing Frustum
-            
-            m_pDrawFrustum->Use();
-
-            glUniformMatrix4fv(glGetUniformLocation(m_pDrawFrustum->m_shaderID, "view"), 1, GL_FALSE,
-                glm::value_ptr(view));
-            glUniformMatrix4fv(glGetUniformLocation(m_pDrawFrustum->m_shaderID, "proj"), 1, GL_FALSE,
-                glm::value_ptr(projection));
-            glBindVertexArray(m_frustumVAO);
-            glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
-        }
     }
     else if(m_showPoints) {
         m_pShaderPointsOnly->Use();
@@ -533,45 +571,44 @@ GLuint Renderer::SetupQuadVAO() {
     return m_quadVAO;
 }
 
-GLuint Renderer::SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& view) {
-    std::vector<glm::vec4> ndcCorners = {
-        {-1, -1, -1, 1}, {1, -1, -1, 1}, {1, 1, -1, 1}, {-1, 1, -1, 1},  // Near plane
-        {-1, -1, 1, 1},  {1, -1, 1, 1},  {1, 1, 1, 1},  {-1, 1, 1, 1}    // Far plane
+GLuint Renderer::SetupBBoxVAO(const BoundingBox& box)
+{
+    std::vector<glm::vec3> corners = {
+    {box.min.x, box.min.y, box.min.z},
+    {box.max.x, box.min.y, box.min.z},
+    {box.max.x, box.max.y, box.min.z},
+    {box.min.x, box.max.y, box.min.z},
+    {box.min.x, box.min.y, box.max.z},
+    {box.max.x, box.min.y, box.max.z},
+    {box.max.x, box.max.y, box.max.z},
+    {box.min.x, box.max.y, box.max.z}
     };
 
-    glm::mat4 invViewProj = glm::inverse(projection * view);
-    std::vector<glm::vec4> worldCorners;
+    std::vector<GLuint> indices = {
+        0, 1, 1, 2, 2, 3, 3, 0, 
+        4, 5, 5, 6, 6, 7, 7, 4, 
+        0, 4, 1, 5, 2, 6, 3, 7  
+    };
 
-    for (const auto& ndc : ndcCorners) {
-        glm::vec4 world = invViewProj * ndc;
-        worldCorners.push_back(world / world.w);
-    }
+    GLuint bboxVBO, bboxEBO;
+    glGenVertexArrays(1, &m_AABO_VAO);
+    glGenBuffers(1, &bboxVBO);
+    glGenBuffers(1, &bboxEBO);
 
-    // Indices for 12 frustum indices
-    std::vector<GLuint> indices = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6,
-                                   6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7 };
+    glBindVertexArray(m_AABO_VAO);
 
-    GLuint frustumVBO, frustumEBO;
-    glGenVertexArrays(1, &m_frustumVAO);
-    glGenBuffers(1, &frustumVBO);
-    glGenBuffers(1, &frustumEBO);
+    glBindBuffer(GL_ARRAY_BUFFER, bboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, corners.size() * sizeof(glm::vec3), corners.data(), GL_STATIC_DRAW);
 
-    glBindVertexArray(m_frustumVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, frustumVBO);
-    glBufferData(GL_ARRAY_BUFFER, worldCorners.size() * sizeof(glm::vec4), worldCorners.data(),
-        GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, frustumEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(),
-        GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bboxEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 
-    return m_frustumVAO;
+    return m_AABO_VAO;
 }
 
 /* -------------------------------------------------------------------------
@@ -704,6 +741,48 @@ void Renderer::ConfigureSplatFBO() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+
+Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {
+
+    BoundingBox boundingBox;
+    
+    glm::vec3 bboxMin = glm::vec3(std::numeric_limits<float>::infinity());
+    glm::vec3 bboxMax = glm::vec3(-std::numeric_limits<float>::infinity());
+
+
+    for (int i = 0; i < pc.PointsAmount(); ++i) {
+        auto point = pc.GetPointByID(i)->GetPosition();
+
+        // MAX
+        if (point.x > bboxMax.x) {
+            bboxMax.x = point.x;
+        }
+        if (point.y > bboxMax.y) {
+            bboxMax.y = point.y;
+        }
+        if (point.z > bboxMax.z) {
+            bboxMax.z = point.z;
+        }
+
+        // MIN
+        if (point.x < bboxMin.x) {
+            bboxMin.x = point.x;
+        }
+        if (point.y < bboxMin.y) {
+            bboxMin.y = point.y;
+        }
+        if (point.z < bboxMin.z) {
+            bboxMin.z = point.z;
+        }
+    }
+
+    boundingBox.min = bboxMin;
+    boundingBox.max = bboxMax;
+
+    return boundingBox;
+
+}
+
 /* -------------------------------------------------------------------------
  *
  * Helper function to render some additional information in form of text
@@ -713,7 +792,6 @@ void Renderer::ConfigureSplatFBO() {
  *
  * -------------------------------------------------------------------------
  */
-
 
 void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT ) {
     glUseProgram(0);

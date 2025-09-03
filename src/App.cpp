@@ -56,7 +56,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer = new Renderer(camera);
 
     // calculation
-    renderer->Start("data/custom/no_normals/dog7_final.ply",  width, height);
+    renderer->Start("data/custom/no_normals/horse7_final.ply",  width, height);
 
 }
 
@@ -146,8 +146,8 @@ void App::processInput() {
     if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_RELEASE) key_pressed = false;
 
     // visualize frustum cone
-    toggle(GLFW_KEY_F, renderer->m_showFrustum);
-    renderer->m_showFrustum;
+    toggle(GLFW_KEY_F, renderer->m_showAABB);
+    renderer->m_showAABB;
 
     toggle(GLFW_KEY_TAB, renderer->m_recalculate = false);
 

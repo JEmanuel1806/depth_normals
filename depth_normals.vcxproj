@@ -436,8 +436,8 @@
     <None Include="src\shaders\debug\debug_normal_tex.vert" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
-    <None Include="src\shaders\draw_frustum.frag" />
-    <None Include="src\shaders\draw_frustum.vert" />
+    <None Include="src\shaders\draw_AABB.frag" />
+    <None Include="src\shaders\draw_AABB.vert" />
     <None Include="src\shaders\draw_lines.frag" />
     <None Include="src\shaders\draw_lines.geom" />
     <None Include="src\shaders\draw_lines.vert" />

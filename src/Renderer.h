@@ -22,7 +22,7 @@ public:
          bool m_showDepthOnly = false;
          bool m_recalculate = true;
          bool m_showIDMap = false;
-         bool m_showFrustum = false;
+         bool m_showAABB = false;
          bool m_spinPointCloudRight = false;
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
@@ -55,6 +55,25 @@ private:
          unsigned int m_height;
          unsigned int m_width;
 
+         struct BoundingBox {
+             glm::vec3 min;
+             glm::vec3 max;
+
+             glm::vec3 center() const {
+                 return (min + max) * 0.5f;
+             }
+
+             glm::vec3 extent() const {
+                 return (max - min) * 0.5f;
+             }
+
+             glm::vec3 size() const {
+                 return (max - min);
+             }
+         };
+
+         BoundingBox aabb;
+
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderBigSplats = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
@@ -64,13 +83,13 @@ private:
          Shader* m_pShaderPointsNormals = nullptr;
          Shader* m_pDebugTexture = nullptr;
          Shader* m_pDebugNormalTexture = nullptr;
-         Shader* m_pDrawFrustum = nullptr;
+         Shader* m_pDrawAABB = nullptr;
 
          GLuint m_VAO = 0;
          GLuint m_VBO = 0;
          GLuint m_quadVAO = 0;
          GLuint m_lineVAO = 0;
-         GLuint m_frustumVAO = 0;
+         GLuint m_AABO_VAO = 0;
          GLuint m_pointNormalSSBO;
          GLuint m_pointGTSSBO;
          GLuint m_pointAvgSSBO;
@@ -84,8 +103,9 @@ private:
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
-         GLuint SetupFrustumVAO(const glm::mat4& projection, const glm::mat4& view);
+         GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
+         BoundingBox CalcAABB(PointCloud &pointcloud);
          void RenderText(float fps, PointCloud pc, PointCloud pcGT);
 
          float angle;
