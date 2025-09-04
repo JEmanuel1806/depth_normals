@@ -36,8 +36,8 @@ void main(){
         //if (d < 0.0) { d = -d; }  
 
         if(theta >= 0.01 && theta <= 10.0){
-            // points[currentID].color = vec3(0, 1, 0);
-            points[currentID].color = invisible;
+            points[currentID].color = vec3(0, 1, 0);
+            //points[currentID].color = invisible;
         }
         else if(theta >= 0.01 && theta <= 30.0){
             points[currentID].color = vec3(1,1,0);
@@ -46,7 +46,7 @@ void main(){
             points[currentID].color = vec3(1,0,0);
         }
         else{
-            points[currentID].color = invisible; //occluded or errors
+            points[currentID].color = vec3(1,0,1); //occluded or errors
         }
     }
 }

@@ -26,6 +26,7 @@ public:
          bool m_spinPointCloudRight = false;
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
+         bool automatic_mode = false;
 
          GLuint m_fboRef = 0;
          GLuint m_depthTexRef = 0;
@@ -104,6 +105,9 @@ private:
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
+
+         // Render Loop
+         void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
          void RenderText(float fps, PointCloud pc, PointCloud pcGT);

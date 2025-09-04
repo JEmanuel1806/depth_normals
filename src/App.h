@@ -32,7 +32,7 @@ public:
 	float lastX = width;
 	float lastY = height;
 	
-	App(unsigned int w, unsigned int h);
+	App(unsigned int w, unsigned int h, std::string inputFile);
 	~App();
 	void run();
 	void processInput();

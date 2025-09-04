@@ -14,7 +14,9 @@ void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum seve
         std::cerr << "Severity: LOW\n";
 }
 
-App::App(unsigned int w, unsigned int h) : width(w), height(h) {
+
+// ply point cloud input given
+App::App(unsigned int w, unsigned int h, std::string plyFile) : width(w), height(h) {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         exit(-1);
@@ -33,12 +35,12 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
         exit(-1);
     }
 
-
-
     // DEBUG OUTPUT
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(DebugCallback, nullptr);
+
+    std::cout << "Loaded point cloud:" << plyFile;
 
     glfwSetWindowUserPointer(window, this);
     glfwSetCursorPosCallback(window, [](GLFWwindow* win, double xpos, double ypos) {
@@ -56,7 +58,7 @@ App::App(unsigned int w, unsigned int h) : width(w), height(h) {
     renderer = new Renderer(camera);
 
     // calculation
-    renderer->Start("data/custom/no_normals/horse7_final.ply",  width, height);
+    renderer->Start(plyFile, width, height);
 
 }
 
