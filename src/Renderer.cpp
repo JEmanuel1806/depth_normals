@@ -333,7 +333,7 @@ void Renderer::Render(float fps) {
 
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-            std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            //std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
             glEndQuery(GL_TIME_ELAPSED);
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -389,8 +389,7 @@ void Renderer::Render(float fps) {
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
             
-
-            std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
+            //std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
             glBeginQuery(GL_TIME_ELAPSED, qReadBack);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
             glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
@@ -405,12 +404,12 @@ void Renderer::Render(float fps) {
 
             glQueryCounter(t1, GL_TIMESTAMP);
 
-            Point p = m_pointCloud.m_points[200];
-            std::cout << "Point ID: " << p.m_pointID << std::endl;
-            std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
-            std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
-            std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
-            m_pCamera->HasChanged = false;
+            //Point p = m_pointCloud.m_points[200];
+            //std::cout << "Point ID: " << p.m_pointID << std::endl;
+            //std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
+            //std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
+            //std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
+            //m_pCamera->HasChanged = false;
 
 
             GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0,  ts0 = 0, ts1 = 0;

@@ -23,12 +23,15 @@ struct NormalBuffer{
     int counter;
 };
 
-const ivec2 offsets[9] = ivec2[9]
-(
-    ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
-    ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
-    ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1)
+const ivec2 offsets[25] = ivec2[25](
+    ivec2(-2,  2), ivec2(-1,  2), ivec2(0,  2), ivec2(1,  2), ivec2(2,  2),
+    ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
+    ivec2(-2,  0), ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0), ivec2(2,  0),
+    ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
+    ivec2(-2, -2), ivec2(-1, -2), ivec2(0, -2), ivec2(1, -2), ivec2(2, -2)
 );
+
+vec3 kernelPositions[25];
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
 
@@ -61,30 +64,66 @@ void main() {
     // reconstruct points
     vec3 reconstructedPoint = getPos(currentPixelPos, currentPixelDepth);
 
-    // find and reconstruct neighbors (CROSS)
-    ivec2 leftPos = currentPixelPos + ivec2(-1, 0);
-    ivec2 rightPos = currentPixelPos + ivec2(1, 0);
-    ivec2 upPos = currentPixelPos + ivec2(0, 1);
-    ivec2 downPos = currentPixelPos + ivec2(0, -1);
+    vec3 normalSum = vec3(0);
+
+    // 5x5 KERNEL
+    for (int i = 0; i < 25; ++i)
+    {
+        ivec2 kernelCoord = currentPixelPos + offsets[i];
+        float kernelDepth = texelFetch(splat_depth, kernelCoord,0).r;
+        if(abs(kernelDepth - currentPixelDepth) > 1){
+            kernelPositions[i] = vec3(0);
+            continue;
+        }
+        kernelPositions[i] = getPos(kernelCoord, kernelDepth);
+
+    }
+
+    vec3 leftNext  = kernelPositions[11];  // -1, 0
+    vec3 leftFar   = kernelPositions[10];  // -2, 0
+    vec3 rightNext = kernelPositions[13];  // +1, 0
+    vec3 rightFar  = kernelPositions[14];  // +2, 0
     
-    float leftPixelDepth = texelFetch(splat_depth, leftPos, 0).r;
-    float rightPixelDepth = texelFetch(splat_depth, rightPos, 0).r;
-    float upPixelDepth = texelFetch(splat_depth, upPos, 0).r;
-    float downPixelDepth = texelFetch(splat_depth, downPos, 0).r;
+    vec3 upNext    = kernelPositions[7];   // 0, -1
+    vec3 upFar     = kernelPositions[2];   // 0, -2
+    vec3 downNext  = kernelPositions[17];  // 0, +1
+    vec3 downFar   = kernelPositions[22];  // 0, +2
     
-    vec3 leftReconstructedPoint = getPos(leftPos, leftPixelDepth);
-    vec3 rightReconstructedPoint = getPos(rightPos, rightPixelDepth);
-    vec3 upReconstructedPoint = getPos(upPos, upPixelDepth);
-    vec3 downReconstructedPoint = getPos(downPos, downPixelDepth);
+    vec3 upLeft    = kernelPositions[6];   // -1, -1
+    vec3 upRight   = kernelPositions[8];   // +1, -1
+    vec3 downLeft  = kernelPositions[16];  // -1, +1
+    vec3 downRight = kernelPositions[18];  // +1, +1
     
-    // gradient calc
-    vec3 dpdx = rightReconstructedPoint-leftReconstructedPoint;
-    vec3 dpdy = upReconstructedPoint-downReconstructedPoint;
+    vec3 upLeftFar    = kernelPositions[0];   // -2, -2
+    vec3 upRightFar   = kernelPositions[4];   // +2, -2
+    vec3 downLeftFar  = kernelPositions[20];  // -2, +2
+    vec3 downRightFar = kernelPositions[24];  // +2, +2
+        
+    if (length(rightNext) > 1e-6 && length(leftNext) > 1e-6 &&
+        length(upNext)    > 1e-6 && length(downNext) > 1e-6) {
+        normalSum += normalize(cross(rightNext - leftNext, upNext - downNext));
+    }
+    
+    if (length(downLeft)  > 1e-6 && length(upRight)   > 1e-6 &&
+        length(downRight) > 1e-6 && length(upLeft)    > 1e-6) {
+        normalSum += normalize(cross(downLeft - upRight, downRight - upLeft)); // diagonal
+    }
+    
+    if (length(rightFar) > 1e-6 && length(leftFar) > 1e-6 &&
+        length(upFar)    > 1e-6 && length(downFar) > 1e-6) {
+        normalSum += normalize(cross(rightFar - leftFar, upFar - downFar));
+    }
+    
+    if (length(downLeftFar)  > 1e-6 && length(upRightFar)   > 1e-6 &&
+        length(downRightFar) > 1e-6 && length(upLeftFar)    > 1e-6) {
+        normalSum += normalize(cross(downLeftFar - upRightFar, downRightFar - upLeftFar)); // diagonal
+    }
+
 
     // normal calc 
     //vec3 normal = cross(dFdx(reconstructedPoint), dFdy(reconstructedPoint));
     
-    vec3 normal = normalize(mat3(invView) * normalize(cross(dpdx,dpdy)));
+    vec3 normal = normalize(mat3(invView) * normalSum);
 
     atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);
     atomicAdd(normalBuffer[currentPixelID].normal.y, normal.y);

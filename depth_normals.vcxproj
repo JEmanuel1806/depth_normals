@@ -443,8 +443,6 @@
     <None Include="src\shaders\draw_lines.vert" />
     <None Include="src\shaders\draw_points.frag" />
     <None Include="src\shaders\draw_points.vert" />
-    <None Include="src\shaders\calc_normal.frag" />
-    <None Include="src\shaders\calc_normal.vert" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
