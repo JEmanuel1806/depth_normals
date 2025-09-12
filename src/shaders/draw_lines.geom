@@ -21,6 +21,8 @@ void main() {
     float headLen=0.02;
     float shaftR=0.005;
     float headR=0.01;
+
+    const float pi = 3.141592653589793;
     
     int segments = 16;
 
@@ -29,7 +31,7 @@ void main() {
 
     for(int i = 0; i <= segments; i++){
         
-        float ang = i * (2 * 3.14159/segments);
+        float ang = i * (2 * pi/segments);
         vec3 ring = M * vec3(cos(ang),sin(ang),0);
         vec3 v0 = p0 + ring * shaftR;
         vec3 v1 = p1 + ring * shaftR;

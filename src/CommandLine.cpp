@@ -29,7 +29,6 @@ int CommandLine::executeAndWait() {
         return -1;
     }
 
-    // warten bis der Prozess fertig ist
     WaitForSingleObject(pi.hProcess, INFINITE);
 
     DWORD exitCode = 0;

@@ -330,7 +330,6 @@ void Renderer::Render(float fps) {
 
 		//int exitCode = ipsr.executeAndWait();
 
-		// PoissonRecon starten
 		CommandLine poisson("poisson/GPU_PoissonRecon.exe");
 		poisson.arg(inputPath);
 		poisson.arg(outputPath);
