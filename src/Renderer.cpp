@@ -90,7 +90,6 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 		ply_path_reference.replace(pos, term.length(), "ground_truth");
 	}
 
-
 	// Load point cloud from PLY file
 	m_pointCloud = plyLoader.LoadPLY(ply_path); // no normal model, to be calculated
 	m_pointCloudGT = plyLoader.LoadPLY(ply_path_reference); // ground truth
@@ -201,7 +200,6 @@ void Renderer::Render(float fps) {
 	//view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
 
 	// if its ground truth (point cloud with normals) dont calculate obv
-	// Only calculate if "TAB" is pressed (=Recalculate on) to prevent LAG
 
 	if (!m_pointCloud.m_hasNormals && m_recalculate) {
 
@@ -313,11 +311,45 @@ void Renderer::Render(float fps) {
 	}
 	glBindVertexArray(0);
 
+	// saving the new point cloud to a file
+	// calling ipsr on the point cloud without normals
+	// calling screened poisson on the new point cloud 
 	if (saveToPLY) {
-		plyLoader.SavePLY("data/custom/output_data/output.ply", m_pointCloud);
+		std::string inputPath = "data/custom/output_data/output.ply";
+		std::string outputPath = "data/custom/output_data/output_recon.ply";
+		std::string outputPathIPSR = "data/custom/output_data/output_ipsr.ply";
+
+		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
+
+		//CommandLine ipsr("ipsr/ipsr.exe");
+		//ipsr.arg("--in");
+		//ipsr.arg("data/custom/no_normals/dog7_final.ply");
+		//ipsr.arg("--out");
+		//ipsr.arg(outputPathIPSR);
+
+		//int exitCode = ipsr.executeAndWait();
+
+		// PoissonRecon starten
+		CommandLine poisson("poisson/GPU_PoissonRecon.exe");
+		poisson.arg(inputPath);
+		poisson.arg(outputPath);
+		poisson.arg("--depth");
+		poisson.arg("8");
+		poisson.arg("--samplesPerNode");
+		poisson.arg("1.5");
+		poisson.arg("--pointWeight");
+		poisson.arg("4");
+		poisson.arg("--threads");
+		poisson.arg("8");
+
+		int exitCode2 = poisson.executeAndWait();
+		std::cout << "PoissonRecon finished with code " << exitCode2 << std::endl;
+
 		saveToPLY = false;
 	}
+
+
 
 	RenderText(fps, m_pointCloud, m_pointCloudGT);
 }

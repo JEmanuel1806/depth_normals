@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "Shader.h" 
 #include "PLY_loader.h"
+#include "CommandLine.h"
 
 #define  STB_EASY_FONT_IMPLEMENTATION
 #include "stb_easy_font.h"
@@ -26,7 +27,7 @@ public:
          bool m_spinPointCloudRight = false;
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
-         bool automatic_mode = false;
+         bool automatic_mode = true;
 
          GLuint m_fboRef = 0;
          GLuint m_depthTexRef = 0;
@@ -46,6 +47,7 @@ public:
          float m_zFar = 100.0f;
 
          PLY_loader plyLoader;
+         CommandLine cmd;
 
 private:
          Camera* m_pCamera = nullptr;

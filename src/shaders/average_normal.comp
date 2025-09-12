@@ -33,20 +33,20 @@ void main(){
 
         float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0); 
         float theta = degrees(acos(d));
-        //if (d < 0.0) { d = -d; }  
+        if (d < 0.0) { d = -d; }  
 
         if(theta >= 0.01 && theta <= 10.0){
-            points[currentID].color = vec3(0, 1, 0);
-            //points[currentID].color = invisible;
+            //points[currentID].color = vec3(0, 1, 0);
+            points[currentID].color = invisible;
         }
         else if(theta >= 0.01 && theta <= 30.0){
-            points[currentID].color = vec3(1,1,0);
+            points[currentID].color = vec3(1,1,0.5);
         }
         else if(theta > 30.0 && theta <= 180) {
             points[currentID].color = vec3(1,0,0);
         }
         else{
-            points[currentID].color = vec3(1,0,1); //occluded or errors
+            points[currentID].color = invisible; //occluded or errors
         }
     }
 }

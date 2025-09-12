@@ -2,9 +2,6 @@
 #extension GL_NV_shader_atomic_float : enable
 layout(local_size_x = 8, local_size_y = 8) in;
 
-uniform sampler2D  ref_depth;
-uniform isampler2D ref_id;
-
 uniform sampler2D  splat_depth;
 uniform isampler2D splat_id;
 
@@ -71,7 +68,7 @@ void main() {
     {
         ivec2 kernelCoord = currentPixelPos + offsets[i];
         float kernelDepth = texelFetch(splat_depth, kernelCoord,0).r;
-        if(abs(kernelDepth - currentPixelDepth) > 1){
+        if(abs(kernelDepth - currentPixelDepth) > 0.01){
             kernelPositions[i] = vec3(0);
             continue;
         }
