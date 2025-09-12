@@ -1,4 +1,4 @@
-﻿# Point Cloud Normal Calculation and Visualization 
+﻿﻿# Point Cloud Normal Calculation and Visualization 
 
 This project calculates **surface normals** for a 3D point cloud using a **screen‑space depth buffer** and visualizes them in OpenGL. It supports both **ground‑truth** and **calculated** normals and offers **visual debugging tools** to analyze and compare the normal estimation.
 

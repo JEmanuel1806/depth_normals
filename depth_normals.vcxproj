@@ -23,6 +23,7 @@
     <ClCompile Include="includes\stb_image_aug.c" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\CommandLine.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\PLY_loader.cpp" />
     <ClCompile Include="src\Point.cpp" />
@@ -285,6 +286,7 @@
     <ClInclude Include="includes\stb_image_aug.h" />
     <ClInclude Include="src\App.h" />
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\CommandLine.h" />
     <ClInclude Include="src\PLY_loader.h" />
     <ClInclude Include="src\Point.h" />
     <ClInclude Include="src\PointCloud.h" />
@@ -436,15 +438,13 @@
     <None Include="src\shaders\debug\debug_normal_tex.vert" />
     <None Include="src\shaders\depth_pass.frag" />
     <None Include="src\shaders\depth_pass.vert" />
-    <None Include="src\shaders\draw_frustum.frag" />
-    <None Include="src\shaders\draw_frustum.vert" />
+    <None Include="src\shaders\draw_AABB.frag" />
+    <None Include="src\shaders\draw_AABB.vert" />
     <None Include="src\shaders\draw_lines.frag" />
     <None Include="src\shaders\draw_lines.geom" />
     <None Include="src\shaders\draw_lines.vert" />
     <None Include="src\shaders\draw_points.frag" />
     <None Include="src\shaders\draw_points.vert" />
-    <None Include="src\shaders\calc_normal.frag" />
-    <None Include="src\shaders\calc_normal.vert" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
@@ -527,6 +527,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -563,6 +564,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

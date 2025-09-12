@@ -13,6 +13,9 @@
 
 #include "PointCloud.h"
 
+struct Face {
+	std::vector<int> indices;
+};
 
 class PLY_loader {
 public:
@@ -21,6 +24,7 @@ public:
 
 	PointCloud LoadPLY(const std::string& filepath);
 	void SavePLY(std::string path, PointCloud pointCloud);
+
 
 	
 private:
