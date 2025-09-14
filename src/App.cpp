@@ -46,13 +46,21 @@ App::App(unsigned int w, unsigned int h, std::string plyFile) : width(w), height
     glfwSetCursorPosCallback(window, [](GLFWwindow* win, double xpos, double ypos) {
         static_cast<App*>(glfwGetWindowUserPointer(win))->mouse_callback(win, xpos, ypos);
         });
-    glfwSetScrollCallback(window, [](GLFWwindow* win, double xoffset, double yoffset) {
-        static_cast<App*>(glfwGetWindowUserPointer(win))->scroll_callback(win, xoffset, yoffset);
-        });
+
     glfwSetMouseButtonCallback(window, [](GLFWwindow* win, int button, int action, int mods) {
         static_cast<App*>(glfwGetWindowUserPointer(win))
             ->mouse_button_callback(win, button, action, mods);
         });
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    
+    ImGui::StyleColorsDark();
+
+    // Backend: GLFW + OpenGL3
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330 core");
 
     camera = new Camera(glm::vec3(0.0f, 0.0f, 6.0f));
     renderer = new Renderer(camera);
@@ -67,30 +75,76 @@ App::~App() {
     delete camera;
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void App::run() {
+
     while (!glfwWindowShouldClose(window)) {
+
+        glfwPollEvents();
+
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         float fps = 1.0f / deltaTime;
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+
+        ImGui::Begin("DockSpace Demo", nullptr, window_flags);
+
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        ImGui::End();
+
+        ImGui::Begin("Control Panel");
+        ImGui::Checkbox("Show Normals", &renderer->m_showNormals);
+        ImGui::Checkbox("Show AABB", &renderer->m_showAABB);
+        ImGui::Checkbox("Show ID Points", &renderer->m_showIDMap);
+        ImGui::Checkbox("Show Points", &renderer->m_showPoints);
+        ImGui::End();
+
+
+        ImGui::Begin("Statistics");
+        ImGui::Text("FPS: %.1f", fps);
+        ImGui::Text("Splat Size: %d", renderer->splatSize);
+        ImGui::End();
+
         processInput();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-       
-        int viewportWidth = width;
-
-        glViewport(0, 0, viewportWidth, height);
+        glViewport(0, 0, width, height);
         renderer->Render(fps);
 
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 }
 
 void App::processInput() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (io.WantCaptureKeyboard)
+        return;
+
     auto isPressed = [&](int key) { return glfwGetKey(window, key) == GLFW_PRESS; };
 
     if (isPressed(GLFW_KEY_W)) camera->ProcessKeyboard(FORWARD, deltaTime);
@@ -161,6 +215,9 @@ void App::processInput() {
 }
 
 void App::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) return; // Maus gehört gerade ImGui
+
     if (button == GLFW_MOUSE_BUTTON_LEFT)
         left_mouse_pressed = (action == GLFW_PRESS);
     else if (button == GLFW_MOUSE_BUTTON_RIGHT)
@@ -168,6 +225,9 @@ void App::mouse_button_callback(GLFWwindow* window, int button, int action, int 
 }
 
 void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) return; 
+
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
@@ -188,6 +248,4 @@ void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
         camera->ProcessMousePan(xoffset, yoffset);
 }
 
-void App::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    camera->ProcessMouseScroll(static_cast<float>(yoffset));
-}
+

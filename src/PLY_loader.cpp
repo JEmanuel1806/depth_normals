@@ -72,18 +72,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     }
 }
 
-/*
- * extract_ascii_data
- *
- * Parses the content of an ASCII PLY file and fills a PointCloud object
- *
- *  - Iterates over each line (i.e., each point) and reads values based on property_order
- *  - Assigns a unique ID to each point
- *  - Detects presence of normal attributes (nx, ny, nz) (no calculation for ply with normal data)
- *  - Assigns default color (255,255,255) if none provided
- *  - Adds the point to the cloud
- *
- */
+
 PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
     const std::vector<std::string>& property_order,
     int vertices) {
