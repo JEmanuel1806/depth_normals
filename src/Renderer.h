@@ -20,6 +20,8 @@ public:
 
          bool m_showNormals = false;
          bool m_showPoints = true;
+         bool m_showMesh = false;
+         bool m_showMeshIPSR = false;
          bool m_showDepthOnly = false;
          bool m_recalculate = true;
          bool m_showIDMap = false;
@@ -28,6 +30,9 @@ public:
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
          bool automatic_mode = true;
+
+         enum class DisplayMode { POINTCLOUD, IPSR_MESH, POISSON_MESH };
+         DisplayMode m_displayMode = DisplayMode::POINTCLOUD;
 
          GLuint m_fboRef = 0;
          GLuint m_depthTexRef = 0;
@@ -54,6 +59,12 @@ private:
 
          PointCloud m_pointCloud;
          PointCloud m_pointCloudGT; // ground truth
+         PointCloud m_meshIPSR;
+         PointCloud m_meshPoisson;
+         GLuint m_meshVAO_IPSR = 0;
+         GLuint m_meshVAO_Poisson = 0;
+         GLuint m_meshIndexCount_IPSR = 0;
+         GLuint m_meshIndexCount_Poisson = 0;
 
          unsigned int m_height;
          unsigned int m_width;
@@ -106,6 +117,7 @@ private:
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
+         GLuint SetupMeshVAO(const PointCloud &pc);
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
          // Render Loop

@@ -4,7 +4,7 @@
 // Debug output for debugging (obv)
 void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
     GLsizei length, const GLchar* message, const void* userParam) {
-    std::cerr << "[OpenGL DEBUG] " << message << std::endl;
+    //std::cerr << "[OpenGL DEBUG] " << message << std::endl;
 
     if (severity == GL_DEBUG_SEVERITY_HIGH)
         std::cerr << "Severity: HIGH\n";
@@ -118,6 +118,19 @@ void App::run() {
         ImGui::Checkbox("Show AABB", &renderer->m_showAABB);
         ImGui::Checkbox("Show ID Points", &renderer->m_showIDMap);
         ImGui::Checkbox("Show Points", &renderer->m_showPoints);
+        if (ImGui::Button("Show Point Cloud")) {
+            renderer->m_displayMode = Renderer::DisplayMode::POINTCLOUD;
+        }
+        if (ImGui::Button("Show IPSR Mesh")) {
+            renderer->m_displayMode = Renderer::DisplayMode::IPSR_MESH;
+        }
+        if (ImGui::Button("Show Poisson Mesh")) {
+            renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
+        }
+        ImGui::Spacing();
+        if (ImGui::Button("Save PLY File")) {
+            renderer->saveToPLY = true;   
+        }
         ImGui::End();
 
 

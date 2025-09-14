@@ -17,6 +17,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     std::vector<std::string> property_order;
 
     int vertices = 0;
+    int faces = 0;
 
     if (!ply_file.is_open()) {
         std::cerr << "Could not open file: " << filepath << std::endl;
@@ -41,6 +42,9 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
             if (element_type == "vertex") {
                 iss >> vertices;
             }
+            if (element_type == "face") {
+                iss >> faces;
+            }
         }
         else if (keyword == "property") {
             std::string type, name;
@@ -61,7 +65,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     }
 
     if (ply_format == "ascii") {
-        return ExtractAsciiData(ply_file, property_order, vertices);
+        return ExtractAsciiData(ply_file, property_order, vertices, faces);
     }
     else if (ply_format == "binary_little_endian") {
         return ExtractBinaryData(ply_file, property_order, vertices);
@@ -75,7 +79,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
 
 PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
     const std::vector<std::string>& property_order,
-    int vertices) {
+    int vertices, int faces) {
     PointCloud cloud;
     int id_counter = 0;
     std::string line;
@@ -123,6 +127,20 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
         // default color values
         point.m_color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
         cloud.AddPoint(point);
+    }
+
+
+    for (int i = 0; i < faces && std::getline(ply_file, line); i++) {
+        std::istringstream iss(line);
+        int count;
+        iss >> count;
+        Face face;
+        for (int j = 0; j < count; j++) {
+            int idx;
+            iss >> idx;
+            face.indices.push_back(idx);
+        }
+        cloud.m_faces.push_back(face);
     }
 
     std::cerr << "Loaded points: " << cloud.PointsAmount() << std::endl;

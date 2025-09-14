@@ -297,7 +297,7 @@ void Renderer::Render(float fps) {
 		glBindVertexArray(m_lineVAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	}
-	else if (m_showPoints) {
+	else if (m_displayMode == DisplayMode::POINTCLOUD) {
 		m_pShaderPointsOnly->Use();
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
 			glm::value_ptr(view));
@@ -308,6 +308,36 @@ void Renderer::Render(float fps) {
 		glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), splatSize);
 		glBindVertexArray(m_lineVAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+	}
+	else if (m_displayMode == DisplayMode::IPSR_MESH) {
+		if (m_meshVAO_IPSR) {
+			std::cout << "Showing IPSR Mesh\n";
+			m_pShaderPointsOnly->Use();
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
+				glm::value_ptr(view));
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE,
+				glm::value_ptr(projection));
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
+				glm::value_ptr(model));
+
+			glBindVertexArray(m_meshVAO_IPSR);
+			glDrawElements(GL_TRIANGLES, m_meshIndexCount_IPSR, GL_UNSIGNED_INT, 0);
+		}
+	}
+	else if (m_displayMode == DisplayMode::POISSON_MESH) {
+		if (m_meshVAO_Poisson) {
+			std::cout << "Showing Poisson Mesh\n";
+			m_pShaderPointsOnly->Use();
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
+				glm::value_ptr(view));
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE,
+				glm::value_ptr(projection));
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
+				glm::value_ptr(model));
+
+			glBindVertexArray(m_meshVAO_Poisson);
+			glDrawElements(GL_TRIANGLES, m_meshIndexCount_Poisson, GL_UNSIGNED_INT, 0);
+		}
 	}
 	glBindVertexArray(0);
 
@@ -322,13 +352,13 @@ void Renderer::Render(float fps) {
 		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
 
-		//CommandLine ipsr("ipsr/ipsr.exe");
-		//ipsr.arg("--in");
-		//ipsr.arg("data/custom/no_normals/dog7_final.ply");
-		//ipsr.arg("--out");
-		//ipsr.arg(outputPathIPSR);
+		CommandLine ipsr("ipsr/ipsr.exe");
+		ipsr.arg("--in");
+		ipsr.arg("data/custom/no_normals/dog7_final.ply");
+		ipsr.arg("--out");
+		ipsr.arg(outputPathIPSR);
 
-		//int exitCode = ipsr.executeAndWait();
+		int exitCode = ipsr.executeAndWait();
 
 		CommandLine poisson("poisson/GPU_PoissonRecon.exe");
 		poisson.arg(inputPath);
@@ -345,10 +375,25 @@ void Renderer::Render(float fps) {
 		int exitCode2 = poisson.executeAndWait();
 		std::cout << "PoissonRecon finished with code " << exitCode2 << std::endl;
 
+		m_meshIPSR = plyLoader.LoadPLY(outputPathIPSR);
+		m_meshPoisson = plyLoader.LoadPLY(outputPath);
+
+		if (!m_meshIPSR.m_faces.empty()) {
+			m_meshVAO_IPSR = SetupMeshVAO(m_meshIPSR);
+			m_meshIndexCount_IPSR = 0;
+			std::cout << "setup IPSR mesh VAO\n";
+			for (auto& f : m_meshIPSR.m_faces) m_meshIndexCount_IPSR += (GLuint)f.indices.size();
+		}
+
+		if (!m_meshPoisson.m_faces.empty()) {
+			m_meshVAO_Poisson = SetupMeshVAO(m_meshPoisson);
+			m_meshIndexCount_Poisson = 0;
+			std::cout << "setup Poisson mesh VAO\n";
+			for (auto& f : m_meshPoisson.m_faces) m_meshIndexCount_Poisson += (GLuint)f.indices.size();
+		}
+
 		saveToPLY = false;
 	}
-
-
 
 	RenderText(fps, m_pointCloud, m_pointCloudGT);
 }
@@ -610,6 +655,41 @@ GLuint Renderer::SetupQuadVAO() {
 
 	return m_quadVAO;
 }
+
+GLuint Renderer::SetupMeshVAO(const PointCloud& pc) {
+	GLuint vao, vbo, ebo;
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
+	glGenBuffers(1, &ebo);
+
+	glBindVertexArray(vao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, pc.m_points.size() * sizeof(Point), pc.m_points.data(), GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, m_position));
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, m_normal));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, m_color));
+	glEnableVertexAttribArray(2);
+
+	std::vector<GLuint> indices;
+	for (auto& f : pc.m_faces) {
+		for (int idx : f.indices) {
+			indices.push_back(idx);
+		}
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
+
+	glBindVertexArray(0);
+	return vao;
+}
+
 
 GLuint Renderer::SetupBBoxVAO(const BoundingBox& box)
 {

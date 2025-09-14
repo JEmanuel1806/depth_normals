@@ -3,9 +3,12 @@
 #include "Point.h"
 #include <vector>
 
+struct Face {
+    std::vector<int> indices; 
+};
+
 class PointCloud {
 public:
-
     void AddPoint(const Point& point) {
         m_points.push_back(point);
     }
@@ -21,4 +24,5 @@ public:
 public:
     bool m_hasNormals = false;
     std::vector<Point> m_points;
+    std::vector<Face> m_faces;   
 };
