@@ -20,6 +20,7 @@ Renderer::Renderer(Camera* cam) {
 	m_pShaderDepth = nullptr;
 	m_pShaderBigSplats = nullptr;
 	m_pShaderPointsOnly = nullptr;
+	m_pShaderMesh = nullptr;
 	m_pShaderCalcNormal = nullptr;
 	m_pShaderNormalAvg = nullptr;
 	m_pShaderNormalCompute = nullptr;
@@ -36,6 +37,7 @@ Renderer::~Renderer() {
 	delete m_pShaderDepth;
 	delete m_pShaderBigSplats;
 	delete m_pShaderPointsOnly;
+	delete m_pShaderMesh;
 	delete m_pShaderCalcNormal;
 	delete m_pShaderNormalAvg;
 	delete m_pShaderPointsNormals;
@@ -60,6 +62,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	m_pShaderDepth = new Shader("src/shaders/depth_pass.vert", "src/shaders/depth_pass.frag");
 	m_pShaderBigSplats = new Shader("src/shaders/biggerSplat_pass.vert", "src/shaders/biggerSplat_pass.frag");
 	m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
+	m_pShaderMesh = new Shader("src/shaders/draw_mesh.vert", "src/shaders/draw_mesh.frag");
 	m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
 	m_pShaderNormalCompute = new Shader("src/shaders/calc_normal.comp");
 	m_pShaderNormalAvg = new Shader("src/shaders/average_normal.comp");
@@ -160,6 +163,11 @@ void Renderer::Render(float fps) {
 	glm::mat4 view = m_pCamera->GetViewMatrix();
 	glm::mat4 projection =
 		glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
+
+	glm::vec3 lightPos = glm::vec3(2.0f, 4.0f, 2.0f);   
+	glm::vec3 viewPos = m_pCamera->m_vecPosition;
+	glm::vec3 lightColor = glm::vec3(1.0f);            
+	glm::vec3 objectColor = glm::vec3(0.0f, 0.7f, 1.0f); 
 
 	// Just for spinning the pointcloud with arrow keys
 	if (m_spinPointCloudLeft) {
@@ -305,20 +313,26 @@ void Renderer::Render(float fps) {
 			glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
 			glm::value_ptr(model));
-		glUniform1f(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "pointSize"), splatSize);
+
 		glBindVertexArray(m_lineVAO);
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	}
 	else if (m_displayMode == DisplayMode::IPSR_MESH) {
 		if (m_meshVAO_IPSR) {
-			std::cout << "Showing IPSR Mesh\n";
-			m_pShaderPointsOnly->Use();
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
+			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			glEnable(GL_DEPTH_TEST);
+			m_pShaderMesh->Use();
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "view"), 1, GL_FALSE,
 				glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE,
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "proj"), 1, GL_FALSE,
 				glm::value_ptr(projection));
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "model"), 1, GL_FALSE,
 				glm::value_ptr(model));
+
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "lightPos"), 1, glm::value_ptr(lightPos));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "viewPos"), 1, glm::value_ptr(viewPos));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "lightColor"), 1, glm::value_ptr(lightColor));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "objectColor"), 1, glm::value_ptr(objectColor));
 
 			glBindVertexArray(m_meshVAO_IPSR);
 			glDrawElements(GL_TRIANGLES, m_meshIndexCount_IPSR, GL_UNSIGNED_INT, 0);
@@ -326,14 +340,20 @@ void Renderer::Render(float fps) {
 	}
 	else if (m_displayMode == DisplayMode::POISSON_MESH) {
 		if (m_meshVAO_Poisson) {
-			std::cout << "Showing Poisson Mesh\n";
-			m_pShaderPointsOnly->Use();
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
+			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			glEnable(GL_DEPTH_TEST);
+			m_pShaderMesh->Use();
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "view"), 1, GL_FALSE,
 				glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "proj"), 1, GL_FALSE,
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "proj"), 1, GL_FALSE,
 				glm::value_ptr(projection));
-			glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "model"), 1, GL_FALSE,
+			glUniformMatrix4fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "model"), 1, GL_FALSE,
 				glm::value_ptr(model));
+
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "lightPos"), 1, glm::value_ptr(lightPos));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "viewPos"), 1, glm::value_ptr(viewPos));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "lightColor"), 1, glm::value_ptr(lightColor));
+			glUniform3fv(glGetUniformLocation(m_pShaderMesh->m_shaderID, "objectColor"), 1, glm::value_ptr(objectColor));
 
 			glBindVertexArray(m_meshVAO_Poisson);
 			glDrawElements(GL_TRIANGLES, m_meshIndexCount_Poisson, GL_UNSIGNED_INT, 0);
@@ -352,13 +372,13 @@ void Renderer::Render(float fps) {
 		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
 
-		CommandLine ipsr("ipsr/ipsr.exe");
-		ipsr.arg("--in");
-		ipsr.arg("data/custom/no_normals/dog7_final.ply");
-		ipsr.arg("--out");
-		ipsr.arg(outputPathIPSR);
-
-		int exitCode = ipsr.executeAndWait();
+		//CommandLine ipsr("ipsr/ipsr.exe");
+		//ipsr.arg("--in");
+		//ipsr.arg("data/custom/no_normals/dog7_final.ply");
+		//ipsr.arg("--out");
+		//ipsr.arg(outputPathIPSR);
+		//
+		//int exitCode = ipsr.executeAndWait();
 
 		CommandLine poisson("poisson/GPU_PoissonRecon.exe");
 		poisson.arg(inputPath);
@@ -370,7 +390,7 @@ void Renderer::Render(float fps) {
 		poisson.arg("--pointWeight");
 		poisson.arg("4");
 		poisson.arg("--threads");
-		poisson.arg("8");
+		poisson.arg("12");
 
 		int exitCode2 = poisson.executeAndWait();
 		std::cout << "PoissonRecon finished with code " << exitCode2 << std::endl;
@@ -379,17 +399,21 @@ void Renderer::Render(float fps) {
 		m_meshPoisson = plyLoader.LoadPLY(outputPath);
 
 		if (!m_meshIPSR.m_faces.empty()) {
+			ComputeMeshNormals(m_meshIPSR);
 			m_meshVAO_IPSR = SetupMeshVAO(m_meshIPSR);
 			m_meshIndexCount_IPSR = 0;
 			std::cout << "setup IPSR mesh VAO\n";
-			for (auto& f : m_meshIPSR.m_faces) m_meshIndexCount_IPSR += (GLuint)f.indices.size();
+			for (auto& f : m_meshIPSR.m_faces)
+				m_meshIndexCount_IPSR += (GLuint)f.indices.size();
 		}
 
 		if (!m_meshPoisson.m_faces.empty()) {
+			ComputeMeshNormals(m_meshPoisson);
 			m_meshVAO_Poisson = SetupMeshVAO(m_meshPoisson);
 			m_meshIndexCount_Poisson = 0;
 			std::cout << "setup Poisson mesh VAO\n";
-			for (auto& f : m_meshPoisson.m_faces) m_meshIndexCount_Poisson += (GLuint)f.indices.size();
+			for (auto& f : m_meshPoisson.m_faces)
+				m_meshIndexCount_Poisson += (GLuint)f.indices.size();
 		}
 
 		saveToPLY = false;
@@ -429,7 +453,6 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
-
 	m_pShaderBigSplats->Use();
 	glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "view"), 1, GL_FALSE,
 		glm::value_ptr(view));
@@ -546,6 +569,9 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
 
+	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "goodNormal"), goodNormal);
+	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "badNormal"), badNormal);
+
 	// compute shader vars
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
@@ -607,6 +633,34 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 
 
 	// m_pointCloud.m_hasNormals = true;
+}
+
+void Renderer::ComputeMeshNormals(PointCloud& mesh) {
+
+	for (auto& v : mesh.m_points) {
+		v.m_normal = glm::vec3(0.0f);
+	}
+
+
+	for (auto& f : mesh.m_faces) {
+		glm::vec3 A = mesh.m_points[f.indices[0]].m_position;
+		glm::vec3 B = mesh.m_points[f.indices[1]].m_position;
+		glm::vec3 C = mesh.m_points[f.indices[2]].m_position;
+
+		glm::vec3 n = glm::normalize(glm::cross(B - A, C - A));
+
+
+		mesh.m_points[f.indices[0]].m_normal += n;
+		mesh.m_points[f.indices[1]].m_normal += n;
+		mesh.m_points[f.indices[2]].m_normal += n;
+	}
+
+
+	for (auto& v : mesh.m_points) {
+		v.m_normal = glm::normalize(v.m_normal);
+	}
+
+	mesh.m_hasNormals = true; 
 }
 
 // VAO for the normal lines

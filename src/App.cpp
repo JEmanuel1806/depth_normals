@@ -57,6 +57,8 @@ App::App(unsigned int w, unsigned int h, std::string plyFile) : width(w), height
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.Alpha = 0.8f;
 
     // Backend: GLFW + OpenGL3
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -117,16 +119,21 @@ void App::run() {
         ImGui::Checkbox("Show Normals", &renderer->m_showNormals);
         ImGui::Checkbox("Show AABB", &renderer->m_showAABB);
         ImGui::Checkbox("Show ID Points", &renderer->m_showIDMap);
-        ImGui::Checkbox("Show Points", &renderer->m_showPoints);
         if (ImGui::Button("Show Point Cloud")) {
             renderer->m_displayMode = Renderer::DisplayMode::POINTCLOUD;
         }
-        if (ImGui::Button("Show IPSR Mesh")) {
+        if (ImGui::Button("Ground Truth (IPSR)")) {
             renderer->m_displayMode = Renderer::DisplayMode::IPSR_MESH;
         }
-        if (ImGui::Button("Show Poisson Mesh")) {
+        if (ImGui::Button("Reconstruction (PSR)")) {
             renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
         }
+        if (ImGui::Button("Show Occluded Normals")) {
+            renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
+        }
+        ImGui::Spacing();
+        ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
+        ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
         ImGui::Spacing();
         if (ImGui::Button("Save PLY File")) {
             renderer->saveToPLY = true;   

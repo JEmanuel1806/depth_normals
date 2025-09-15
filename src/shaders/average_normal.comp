@@ -15,6 +15,9 @@ struct NormalBuffer{
     int counter;
 };
 
+uniform float goodNormal;
+uniform float badNormal;
+
 vec3 invisible = vec3(0.141f, 0.149f, 0.192f);
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
@@ -35,18 +38,18 @@ void main(){
         float theta = degrees(acos(d));
         if (d < 0.0) { d = -d; }  
 
-        if(theta >= 0.01 && theta <= 10.0){
+        if(theta >= 0.01 && theta <= goodNormal){
             //points[currentID].color = vec3(0, 1, 0);
             points[currentID].color = invisible;
         }
-        else if(theta >= 0.01 && theta <= 30.0){
-            points[currentID].color = vec3(1,1,0.5);
+        else if(theta >= 0.01 && theta >= goodNormal && theta <= badNormal){
+            points[currentID].color = invisible;
         }
-        else if(theta > 30.0 && theta <= 180) {
+        else if(theta > badNormal && theta <= 180) {
             points[currentID].color = vec3(1,0,0);
         }
         else{
-            points[currentID].color = invisible; //occluded or errors
+            points[currentID].color = vec3(0,0,0); //occluded or errors
         }
     }
 }

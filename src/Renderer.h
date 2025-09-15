@@ -51,6 +51,10 @@ public:
          float m_zNear = 0.1f;
          float m_zFar = 100.0f;
 
+         float goodNormal = 5.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
+         float badNormal = 20.0f;  //same for bad (red)
+
+
          PLY_loader plyLoader;
          CommandLine cmd;
 
@@ -91,6 +95,7 @@ private:
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderBigSplats = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
+         Shader* m_pShaderMesh = nullptr;
          Shader* m_pShaderCalcNormal = nullptr;
          Shader* m_pShaderNormalAvg = nullptr;
          Shader* m_pShaderNormalCompute = nullptr;
@@ -122,6 +127,7 @@ private:
 
          // Render Loop
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+         void ComputeMeshNormals(PointCloud& mesh);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
          void RenderText(float fps, PointCloud pc, PointCloud pcGT);
