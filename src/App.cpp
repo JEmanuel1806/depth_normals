@@ -4,7 +4,7 @@
 // Debug output for debugging (obv)
 void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
     GLsizei length, const GLchar* message, const void* userParam) {
-    //std::cerr << "[OpenGL DEBUG] " << message << std::endl;
+    std::cerr << "[OpenGL DEBUG] " << message << std::endl;
 
     if (severity == GL_DEBUG_SEVERITY_HIGH)
         std::cerr << "Severity: HIGH\n";
@@ -131,6 +131,9 @@ void App::run() {
         if (ImGui::Button("Show Occluded Normals")) {
             renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
         }
+        if (ImGui::Button("Camera Angle")) {
+            renderer->cameraViewPos = (renderer->cameraViewPos + 1) % 16;
+        }
         ImGui::Spacing();
         ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
         ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
@@ -143,6 +146,8 @@ void App::run() {
 
         ImGui::Begin("Statistics");
         ImGui::Text("FPS: %.1f", fps);
+        ImGui::Text("Splat Size: %d", renderer->splatSize);
+        ImGui::Text("Point Cloud Size: %d", renderer->m_pointsAmount);
         ImGui::Text("Splat Size: %d", renderer->splatSize);
         ImGui::End();
 
@@ -191,14 +196,6 @@ void App::processInput() {
     // debugging the textures
     toggle(GLFW_KEY_I, renderer->m_showIDMap);
     renderer->m_showIDMap;
-
-    if (isPressed(GLFW_KEY_S) && (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) && !key_pressed) {
-        renderer->saveToPLY = true;   
-        key_pressed = true;
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
-        key_pressed = false;
-    }
 
     if (isPressed(GLFW_KEY_LEFT_ALT)) {
         renderer->m_showPoints = false;
@@ -262,7 +259,19 @@ void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     lastX = xpos;
     lastY = ypos;
 
-    if (left_mouse_pressed)
+    if (left_mouse_pressed && (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)) {
+        renderer->lightYaw += xoffset * -0.1f;
+        renderer->lightPitch += yoffset * 0.1f;
+
+        if (renderer->lightPitch > 89.0f)  renderer->lightPitch = 89.0f;
+        if (renderer->lightPitch < -89.0f) renderer->lightPitch = -89.0f;
+
+        float radius = 10.0f;
+        renderer->lightPos.x = radius * cos(glm::radians(renderer->lightYaw)) * cos(glm::radians(renderer->lightPitch));
+        renderer->lightPos.y = radius * sin(glm::radians(renderer->lightPitch));
+        renderer->lightPos.z = radius * sin(glm::radians(renderer->lightYaw)) * cos(glm::radians(renderer->lightPitch));
+    }
+    else if (left_mouse_pressed)
         camera->ProcessMouseMovement(xoffset, yoffset);
     else if (right_mouse_pressed)
         camera->ProcessMousePan(xoffset, yoffset);

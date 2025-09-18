@@ -31,6 +31,8 @@ public:
          bool saveToPLY = false;
          bool automatic_mode = true;
 
+         size_t cameraViewPos = 0;
+
          enum class DisplayMode { POINTCLOUD, IPSR_MESH, POISSON_MESH };
          DisplayMode m_displayMode = DisplayMode::POINTCLOUD;
 
@@ -54,6 +56,9 @@ public:
          float goodNormal = 5.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
          float badNormal = 20.0f;  //same for bad (red)
 
+         glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 3.0f);
+         float lightYaw = 0.0f;
+         float lightPitch = 0.0f;
 
          PLY_loader plyLoader;
          CommandLine cmd;

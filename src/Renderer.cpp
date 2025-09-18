@@ -12,6 +12,9 @@
 #include <set>
 #include <unordered_map>
 
+#include <thread>
+#include <chrono>
+
 #include "Renderer.h"
 #include "glm/gtx/string_cast.hpp"
 
@@ -163,8 +166,7 @@ void Renderer::Render(float fps) {
 	glm::mat4 view = m_pCamera->GetViewMatrix();
 	glm::mat4 projection =
 		glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
-
-	glm::vec3 lightPos = glm::vec3(2.0f, 4.0f, 2.0f);   
+   
 	glm::vec3 viewPos = m_pCamera->m_vecPosition;
 	glm::vec3 lightColor = glm::vec3(1.0f);            
 	glm::vec3 objectColor = glm::vec3(0.0f, 0.7f, 1.0f); 
@@ -182,7 +184,12 @@ void Renderer::Render(float fps) {
 
 	expectedNormal = m_pointCloud.GetNormalByID(200);
 
-	std::vector<float> cameraAngles = { 0, 45, 90, 135, 180, 225, 270, 315 };
+	std::vector<float> cameraAngles = {
+	0, 22.5f, 45, 67.5f,
+	90, 112.5f, 135, 157.5f,
+	180, 202.5f, 225, 247.5f,
+	270, 292.5f, 315, 337.5f
+	};
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
 
@@ -204,6 +211,7 @@ void Renderer::Render(float fps) {
 	glm::vec3 baseCamPos = aabb.center() + glm::vec3(0, 0, distance);
 	glm::mat4 baseView = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
 
+
 	//view = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
 	//view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
 
@@ -218,24 +226,67 @@ void Renderer::Render(float fps) {
 
 			for (int i = 0; i < nHoriz + 4; ++i) {
 				glm::mat4 view = baseView;
-
+				glm::vec3 camPos;
+	
 				if (i < nHoriz) {
-					view = glm::rotate(view, glm::radians(cameraAngles[i]), glm::vec3(0, 1, 0));
+					float angle = glm::radians(cameraAngles[i]);
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
+					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+
 				}
 				else if (i == nHoriz) {
-					view = glm::rotate(view, glm::radians(+90.0f), glm::vec3(1, 0, 0));
+					camPos = aabb.center() + glm::vec3(0, distance, 0);
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 0, -1));
 				}
 				else if (i == nHoriz + 1) {
-					view = glm::rotate(view, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+					camPos = aabb.center() + glm::vec3(0, -distance, 0);
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 0, 1));
 				}
 				else if (i == nHoriz + 2) {
-					view = glm::rotate(view, glm::radians(+45.0f), glm::vec3(1, 0, 0));
+					float angle = glm::radians(45.0f);
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
+					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 				}
 				else if (i == nHoriz + 3) {
-					view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
+					float angle = glm::radians(-45.0f);
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
+					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 				}
-
-				// Actual Render Pipeline
+				else if (i == nHoriz + 4) {
+					float angle = glm::radians(45.0f);
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
+					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				}
+				else if (i == nHoriz + 5) {
+					float angle = glm::radians(-45.0f);
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
+					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				}
+				else if (i == nHoriz + 6) {
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(1, 0, 0));
+					rot = glm::rotate(rot, glm::radians(45.0f), glm::vec3(0, 1, 0));
+					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				}
+				else if (i == nHoriz + 7) {
+					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f), glm::vec3(1, 0, 0));
+					rot = glm::rotate(rot, glm::radians(45.0f), glm::vec3(0, 1, 0));
+					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+					camPos = aabb.center() + offset;
+					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				}
+				
 				ComputeNormalsForView(view, projection, model);
 			}
 		}
@@ -268,15 +319,29 @@ void Renderer::Render(float fps) {
 
 	// for debugging any texture quickly
 	if (m_showIDMap == true) {
+		glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+
+		m_pShaderDepth->Use();
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE,
+			glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE,
+			glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
+			glm::value_ptr(model));
+
+		glBindVertexArray(m_VAO);
+		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
+		glBindVertexArray(0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 		m_showPoints = false;
 		m_pDebugTexture->Use();
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, m_idTexRef);
 		glUniform1i(glGetUniformLocation(m_pDebugTexture->m_shaderID, "idTex"), 0);
 
-		glDisable(GL_BLEND);
 		glBindVertexArray(m_quadVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
@@ -630,7 +695,6 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		<< "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
 		<< "Total (no Readback): " << msTotal - msRB << " ms  ->  " << 1000 / (msTotal - msRB) << " FPS\n"
 		<< "Readback to VBO for vis: " << msRB << " ms\n";
-
 
 	// m_pointCloud.m_hasNormals = true;
 }

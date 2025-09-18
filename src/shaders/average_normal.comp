@@ -10,7 +10,7 @@ struct Point {
     vec3 normal;   float _padC;
 };
 
-struct NormalBuffer{
+struct NormalBuffer {
     vec3 normal;
     int counter;
 };
@@ -21,35 +21,36 @@ uniform float badNormal;
 vec3 invisible = vec3(0.141f, 0.149f, 0.192f);
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
-layout(std430, binding = 1) buffer PointGTBuffer { Point pointsGT[]; };
-layout(std430, binding = 2) buffer PointBuffer { Point points[]; };
+layout(std430, binding = 1) buffer PointGTBuffer   { Point pointsGT[]; };
+layout(std430, binding = 2) buffer PointBuffer     { Point points[]; };
 
-
-
-void main(){
+void main() {
     ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
     int currentID = texelFetch(ref_id, currentPos, 0).r;
-    
-    if (currentID >= 0) {   
-      points[currentID].normal = normalize(vec3(normalBuffer[currentID].normal/normalBuffer[currentID].counter));
-    
 
-        float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0); 
+    if (currentID >= 0) {
+        points[currentID].normal = normalize(
+            normalBuffer[currentID].normal / float(normalBuffer[currentID].counter)
+        );
+
+        if (dot(points[currentID].normal, pointsGT[currentID].normal) < 0.0) {
+            points[currentID].normal = -points[currentID].normal;
+        }
+
+        float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0);
         float theta = degrees(acos(d));
-        if (d < 0.0) { d = -d; }  
 
-        if(theta >= 0.01 && theta <= goodNormal){
-            //points[currentID].color = vec3(0, 1, 0);
-            points[currentID].color = invisible;
+        if (theta > 0.01 && theta <= goodNormal) {
+            points[currentID].color = invisible;    
         }
-        else if(theta >= 0.01 && theta >= goodNormal && theta <= badNormal){
-            points[currentID].color = invisible;
+        else if (theta > goodNormal && theta <= badNormal) {
+            points[currentID].color = invisible;          
         }
-        else if(theta > badNormal && theta <= 180) {
-            points[currentID].color = vec3(1,0,0);
+        else if (theta > badNormal && theta <= 180.0) {
+            points[currentID].color = vec3(1, 0, 0);      
         }
-        else{
-            points[currentID].color = vec3(0,0,0); //occluded or errors
+        else {
+            points[currentID].color = vec3(1, 1, 0.5);    
         }
     }
 }
