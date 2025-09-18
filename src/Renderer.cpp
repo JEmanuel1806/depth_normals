@@ -143,12 +143,12 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	std::cout << "Current framebuffer: " << currentFB << std::endl;
 
 	if (m_pointCloud.m_hasNormals) {
-		std::cout << "Normals detected. Skip normal calculation..." << std::endl;
+		std::cout << "Normals detected." << std::endl;
 		std::cout << "Expected Normal for ID: " << 200 << " : " << glm::to_string(expectedNormal)
 			<< std::endl;
 	}
 	else {
-		std::cout << "No normals detected. Calculating normals..." << std::endl;
+		std::cout << "No normals detected." << std::endl;
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -185,10 +185,10 @@ void Renderer::Render(float fps) {
 	expectedNormal = m_pointCloud.GetNormalByID(200);
 
 	std::vector<float> cameraAngles = {
-	0, 22.5f, 45, 67.5f,
+	22.5f, 45, 67.5f,
 	90, 112.5f, 135, 157.5f,
 	180, 202.5f, 225, 247.5f,
-	270, 292.5f, 315, 337.5f
+	270, 292.5f, 315, 337.5f, 0.0f
 	};
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
@@ -318,30 +318,15 @@ void Renderer::Render(float fps) {
 	}
 
 	// for debugging any texture quickly
-	if (m_showIDMap == true) {
-		glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
-
-		m_pShaderDepth->Use();
-		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "view"), 1, GL_FALSE,
-			glm::value_ptr(view));
-		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "proj"), 1, GL_FALSE,
-			glm::value_ptr(projection));
-		glUniformMatrix4fv(glGetUniformLocation(m_pShaderDepth->m_shaderID, "model"), 1, GL_FALSE,
-			glm::value_ptr(model));
-
-		glBindVertexArray(m_VAO);
-		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
-		glBindVertexArray(0);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		m_showPoints = false;
+	if (m_showIDMap) {
 		m_pDebugTexture->Use();
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_idTexRef);
+		glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glUniform1i(glGetUniformLocation(m_pDebugTexture->m_shaderID, "idTex"), 0);
 
+		glDisable(GL_BLEND);
 		glBindVertexArray(m_quadVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
