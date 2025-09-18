@@ -469,7 +469,7 @@ void Renderer::Render(float fps) {
 		saveToPLY = false;
 	}
 
-	RenderText(fps, m_pointCloud, m_pointCloudGT);
+	//RenderText(fps, m_pointCloud, m_pointCloudGT);
 }
 
 

@@ -53,16 +53,16 @@ App::App(unsigned int w, unsigned int h, std::string plyFile) : width(w), height
         });
 
     //IMGUI_CHECKVERSION();
-    //ImGui::CreateContext();
-    //ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    
-    //ImGui::StyleColorsDark();
-    //ImGuiStyle& style = ImGui::GetStyle();
-    //style.Alpha = 0.8f;
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    
+    ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.Alpha = 0.8f;
 
     // Backend: GLFW + OpenGL3
-    //ImGui_ImplGlfw_InitForOpenGL(window, true);
-    //ImGui_ImplOpenGL3_Init("#version 330 core");
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330 core");
 
     camera = new Camera(glm::vec3(0.0f, 0.0f, 6.0f));
     renderer = new Renderer(camera);
@@ -78,9 +78,9 @@ App::~App() {
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    //ImGui_ImplOpenGL3_Shutdown();
-    //ImGui_ImplGlfw_Shutdown();
-    //ImGui::DestroyContext();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void App::run() {
@@ -94,62 +94,62 @@ void App::run() {
         lastFrame = currentFrame;
         float fps = 1.0f / deltaTime;
 
-       // ImGui_ImplOpenGL3_NewFrame();
-       // ImGui_ImplGlfw_NewFrame();
-       // ImGui::NewFrame();
-       //
-       // ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
-       //     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-       //     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-       //     ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
-       //
-       // ImGuiViewport* viewport = ImGui::GetMainViewport();
-       // ImGui::SetNextWindowPos(viewport->Pos);
-       // ImGui::SetNextWindowSize(viewport->Size);
-       // ImGui::SetNextWindowViewport(viewport->ID);
-       //
-       // ImGui::Begin("DockSpace Demo", nullptr, window_flags);
-       //
-       // ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-       // ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-       //
-       // ImGui::End();
-       //
-       // ImGui::Begin("Control Panel");
-       // ImGui::Checkbox("Show Normals", &renderer->m_showNormals);
-       // ImGui::Checkbox("Show AABB", &renderer->m_showAABB);
-       // ImGui::Checkbox("Show ID Points", &renderer->m_showIDMap);
-       // if (ImGui::Button("Show Point Cloud")) {
-       //     renderer->m_displayMode = Renderer::DisplayMode::POINTCLOUD;
-       // }
-       // if (ImGui::Button("Ground Truth (IPSR)")) {
-       //     renderer->m_displayMode = Renderer::DisplayMode::IPSR_MESH;
-       // }
-       // if (ImGui::Button("Reconstruction (PSR)")) {
-       //     renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
-       // }
-       // if (ImGui::Button("Show Occluded Normals")) {
-       //     renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
-       // }
-       // if (ImGui::Button("Camera Angle")) {
-       //     renderer->cameraViewPos = (renderer->cameraViewPos + 1) % 16;
-       // }
-       // ImGui::Spacing();
-       // ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
-       // ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
-       // ImGui::Spacing();
-       // if (ImGui::Button("Save PLY File")) {
-       //     renderer->saveToPLY = true;   
-       // }
-       // ImGui::End();
+       ImGui_ImplOpenGL3_NewFrame();
+       ImGui_ImplGlfw_NewFrame();
+       ImGui::NewFrame();
+       
+       ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
+           ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+           ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+           ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+       
+       ImGuiViewport* viewport = ImGui::GetMainViewport();
+       ImGui::SetNextWindowPos(viewport->Pos);
+       ImGui::SetNextWindowSize(viewport->Size);
+       ImGui::SetNextWindowViewport(viewport->ID);
+       
+       ImGui::Begin("DockSpace Demo", nullptr, window_flags);
+       
+       ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+       ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+       
+       ImGui::End();
+       
+       ImGui::Begin("Control Panel");
+       ImGui::Checkbox("Show Normals", &renderer->m_showNormals);
+       ImGui::Checkbox("Show AABB", &renderer->m_showAABB);
+       ImGui::Checkbox("Show ID Points", &renderer->m_showIDMap);
+       if (ImGui::Button("Show Point Cloud")) {
+           renderer->m_displayMode = Renderer::DisplayMode::POINTCLOUD;
+       }
+       if (ImGui::Button("Ground Truth (IPSR)")) {
+           renderer->m_displayMode = Renderer::DisplayMode::IPSR_MESH;
+       }
+       if (ImGui::Button("Reconstruction (PSR)")) {
+           renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
+       }
+       if (ImGui::Button("Show Occluded Normals")) {
+           renderer->m_displayMode = Renderer::DisplayMode::POISSON_MESH;
+       }
+       if (ImGui::Button("Camera Angle")) {
+           renderer->cameraViewPos = (renderer->cameraViewPos + 1) % 16;
+       }
+       ImGui::Spacing();
+       ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
+       ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
+       ImGui::Spacing();
+       if (ImGui::Button("Save PLY File")) {
+           renderer->saveToPLY = true;   
+       }
+       ImGui::End();
 
 
-        //ImGui::Begin("Statistics");
-        //ImGui::Text("FPS: %.1f", fps);
-        //ImGui::Text("Splat Size: %d", renderer->splatSize);
-        //ImGui::Text("Point Cloud Size: %d", renderer->m_pointsAmount);
-        //ImGui::Text("Splat Size: %d", renderer->splatSize);
-        //ImGui::End();
+       ImGui::Begin("Statistics");
+       ImGui::Text("FPS: %.1f", fps);
+       ImGui::Text("Splat Size: %d", renderer->splatSize);
+       ImGui::Text("Point Cloud Size: %d", renderer->m_pointsAmount);
+       ImGui::Text("Splat Size: %d", renderer->splatSize);
+       ImGui::End();
 
         processInput();
 
@@ -157,18 +157,18 @@ void App::run() {
         glViewport(0, 0, width, height);
         renderer->Render(fps);
 
-        //ImGui::Render();
-        //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
     }
 }
 
 void App::processInput() {
-    //ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
 
-    //if (io.WantCaptureKeyboard)
-    //    return;
+    if (io.WantCaptureKeyboard)
+        return;
 
     auto isPressed = [&](int key) { return glfwGetKey(window, key) == GLFW_PRESS; };
 
@@ -232,8 +232,8 @@ void App::processInput() {
 }
 
 void App::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    //ImGuiIO& io = ImGui::GetIO();
-    //if (io.WantCaptureMouse) return; // Maus gehört gerade ImGui
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) return; // Maus gehört gerade ImGui
 
     if (button == GLFW_MOUSE_BUTTON_LEFT)
         left_mouse_pressed = (action == GLFW_PRESS);
@@ -242,8 +242,8 @@ void App::mouse_button_callback(GLFWwindow* window, int button, int action, int 
 }
 
 void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-    //ImGuiIO& io = ImGui::GetIO();
-    //if (io.WantCaptureMouse) return; 
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) return; 
 
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
