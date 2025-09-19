@@ -27,6 +27,7 @@ Renderer::Renderer(Camera* cam) {
 	m_pShaderCalcNormal = nullptr;
 	m_pShaderNormalAvg = nullptr;
 	m_pShaderNormalCompute = nullptr;
+	m_pShaderEvaluateNormal = nullptr;
 	m_pShaderPointsNormals = nullptr;
 	m_pDebugTexture = nullptr;
 	m_VAO = 0;
@@ -45,6 +46,7 @@ Renderer::~Renderer() {
 	delete m_pShaderNormalAvg;
 	delete m_pShaderPointsNormals;
 	delete m_pShaderNormalCompute;
+	delete m_pShaderEvaluateNormal;
 	delete m_pDebugTexture;
 	glDeleteVertexArrays(1, &m_VAO);
 	glDeleteBuffers(1, &m_VBO);
@@ -69,6 +71,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
 	m_pShaderNormalCompute = new Shader("src/shaders/calc_normal.comp");
 	m_pShaderNormalAvg = new Shader("src/shaders/average_normal.comp");
+	m_pShaderEvaluateNormal = new Shader("src/shaders/evaluate_normals.comp");
 	m_pShaderPointsNormals = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom",
 		"src/shaders/draw_lines.frag");
 	m_pDebugTexture =
@@ -134,6 +137,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	ConfigureAvgSSBO();
 	ConfigureNormalSSBO();
 	ConfigureGTSSBO();
+	ConfigureStatsSSBO();
 
 	aabb = CalcAABB(m_pointCloud); // Bounding Box of Point Cloud
 	SetupBBoxVAO(aabb);
@@ -218,7 +222,6 @@ void Renderer::Render(float fps) {
 	// if its ground truth (point cloud with normals) dont calculate obv
 
 	if (!m_pointCloud.m_hasNormals && m_recalculate) {
-
 		// automatic mode, predefined views for normal estimation
 		if (automatic_mode) {
 
@@ -331,7 +334,7 @@ void Renderer::Render(float fps) {
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 
-	if (m_showNormals) {
+	else if (m_showNormals) {
 		// draw white points
 		m_pShaderPointsOnly->Use();
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsOnly->m_shaderID, "view"), 1, GL_FALSE,
@@ -617,15 +620,17 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		GL_FALSE, glm::value_ptr(glm::inverse(projection)));
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
-	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
+	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
 
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "goodNormal"), goodNormal);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "badNormal"), badNormal);
+
 
 	// compute shader vars
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_statsSSBO);
 
 	glDispatchCompute(workGroupX, workGroupY, 1);
 
@@ -644,7 +649,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
 
 	glEndQuery(GL_TIME_ELAPSED);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);	
 
 	glQueryCounter(t1, GL_TIMESTAMP);
 
@@ -680,9 +685,38 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		<< "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
 		<< "Total (no Readback): " << msTotal - msRB << " ms  ->  " << 1000 / (msTotal - msRB) << " FPS\n"
 		<< "Readback to VBO for vis: " << msRB << " ms\n";
-
+	
+	ComputeNormalStatsGPU(goodNormal, badNormal);
 	// m_pointCloud.m_hasNormals = true;
 }
+
+void Renderer::ComputeNormalStatsGPU(float goodDeg, float badDeg) {
+	NormalStats zero = { 0,0,0,0 };
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_statsSSBO);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(NormalStats), &zero);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	glUseProgram(m_pShaderEvaluateNormal->m_shaderID);
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_pointGTSSBO);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO); 
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_statsSSBO);
+
+	glUniform1ui(glGetUniformLocation(m_pShaderEvaluateNormal->m_shaderID, "uCount"), (GLuint)m_pointsAmount);
+	glUniform1f(glGetUniformLocation(m_pShaderEvaluateNormal->m_shaderID, "uGoodDeg"), goodDeg);
+	glUniform1f(glGetUniformLocation(m_pShaderEvaluateNormal->m_shaderID, "uBadDeg"), badDeg);
+
+	const GLuint wg = 256;
+	GLuint groups = (GLuint)((m_pointsAmount + wg - 1) / wg);
+	glDispatchCompute(groups, 1, 1);
+
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_statsSSBO);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(NormalStats), &m_stats);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
 
 void Renderer::ComputeMeshNormals(PointCloud& mesh) {
 
@@ -871,6 +905,18 @@ void Renderer::ConfigureAvgSSBO() {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void Renderer::ConfigureStatsSSBO() {
+	glGenBuffers(1, &m_statsSSBO);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_statsSSBO);
+
+	NormalStats zeroStats = { 0, 0, 0, 0 }; 
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(NormalStats),&zeroStats,GL_DYNAMIC_DRAW);
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_statsSSBO);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+
 /* -------------------------------------------------------------------------
  * configureFBO
  *
@@ -885,7 +931,7 @@ void Renderer::ConfigureRefFBO() {
 	// depth tex
 	glGenTextures(1, &m_depthTexRef);
 	glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, m_width, m_height, 0,
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, m_width, m_height, 0,
 		GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -928,7 +974,7 @@ void Renderer::ConfigureSplatFBO() {
 	// depth tex
 	glGenTextures(1, &m_depthTexSplat);
 	glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, m_width, m_height, 0,
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, m_width, m_height, 0,
 		GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -963,6 +1009,8 @@ void Renderer::ConfigureSplatFBO() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
+
 
 
 Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {

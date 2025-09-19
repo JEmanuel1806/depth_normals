@@ -18,6 +18,14 @@ public:
 
          GLuint qTotal, qRef, qAcc, qFin, qSplat , qReadBack, t0, t1; //performance query metrics
 
+         struct NormalStats {
+             GLuint occludedNrml;
+             GLuint goodNrml;
+             GLuint mediumNrml;
+             GLuint badNrml;
+         };
+
+
          bool m_showNormals = false;
          bool m_showPoints = true;
          bool m_showMesh = false;
@@ -53,8 +61,8 @@ public:
          float m_zNear = 0.1f;
          float m_zFar = 100.0f;
 
-         float goodNormal = 5.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
-         float badNormal = 20.0f;  //same for bad (red)
+         float goodNormal = 10.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
+         float badNormal = 30.0f;  //same for bad (red)
 
          glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 3.0f);
          float lightYaw = 0.0f;
@@ -62,6 +70,7 @@ public:
 
          PLY_loader plyLoader;
          CommandLine cmd;
+         NormalStats m_stats;
 
 private:
          Camera* m_pCamera = nullptr;
@@ -103,6 +112,7 @@ private:
          Shader* m_pShaderMesh = nullptr;
          Shader* m_pShaderCalcNormal = nullptr;
          Shader* m_pShaderNormalAvg = nullptr;
+         Shader* m_pShaderEvaluateNormal = nullptr;
          Shader* m_pShaderNormalCompute = nullptr;
          Shader* m_pShaderPointsNormals = nullptr;
          Shader* m_pDebugTexture = nullptr;
@@ -117,6 +127,7 @@ private:
          GLuint m_pointNormalSSBO;
          GLuint m_pointGTSSBO;
          GLuint m_pointAvgSSBO;
+         GLuint m_statsSSBO;
 
 private:
          void ConfigureNormalSSBO();
@@ -124,6 +135,7 @@ private:
          void ConfigureAvgSSBO();
          void ConfigureRefFBO();
          void ConfigureSplatFBO();
+         void ConfigureStatsSSBO();
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
@@ -132,6 +144,7 @@ private:
 
          // Render Loop
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+         void ComputeNormalStatsGPU(float goodDeg, float badDeg);
          void ComputeMeshNormals(PointCloud& mesh);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);

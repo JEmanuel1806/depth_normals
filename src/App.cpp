@@ -3,7 +3,12 @@
 
 // Debug output for debugging (obv)
 void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
-    GLsizei length, const GLchar* message, const void* userParam) {
+    GLsizei length, const GLchar* message, const void* userParam)
+{
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
+        return; 
+    }
+
     std::cerr << "[OpenGL DEBUG] " << message << std::endl;
 
     if (severity == GL_DEBUG_SEVERITY_HIGH)
@@ -13,6 +18,7 @@ void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum seve
     else if (severity == GL_DEBUG_SEVERITY_LOW)
         std::cerr << "Severity: LOW\n";
 }
+
 
 
 // ply point cloud input given
@@ -134,9 +140,15 @@ void App::run() {
        if (ImGui::Button("Camera Angle")) {
            renderer->cameraViewPos = (renderer->cameraViewPos + 1) % 16;
        }
+       if (ImGui::Button("Automatic Mode")) {
+           if (renderer->automatic_mode)
+               renderer->automatic_mode = false;
+           else
+               renderer->automatic_mode = true;
+       }
        ImGui::Spacing();
-       ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
-       ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
+       //ImGui::SliderFloat("Good Normal Threshold", &renderer->goodNormal, 0.0f, 180.0f, "%.1f");
+       //ImGui::SliderFloat("Bad Normal Threshold", &renderer->badNormal, 0.0f, 180.0f, "%.1f");
        ImGui::Spacing();
        if (ImGui::Button("Save PLY File")) {
            renderer->saveToPLY = true;   
@@ -146,9 +158,19 @@ void App::run() {
 
        ImGui::Begin("Statistics");
        ImGui::Text("FPS: %.1f", fps);
-       ImGui::Text("Splat Size: %d", renderer->splatSize);
+       ImGui::InputFloat("Splat Size", &renderer->splatSize);
        ImGui::Text("Point Cloud Size: %d", renderer->m_pointsAmount);
-       ImGui::Text("Splat Size: %d", renderer->splatSize);
+       uint32_t total = renderer->m_stats.occludedNrml + renderer->m_stats.goodNrml + renderer->m_stats.mediumNrml + renderer->m_stats.badNrml;
+       ImGui::Text("Good:     %u", renderer->m_stats.goodNrml);
+       ImGui::Text("Medium:   %u", renderer->m_stats.mediumNrml);
+       ImGui::Text("Bad:      %u", renderer->m_stats.badNrml);
+       ImGui::Text("Skipped/Occluded: %u", renderer->m_stats.occludedNrml);
+       ImGui::Text("Total points with normals: %u", total - renderer->m_stats.occludedNrml);
+       if (total) {
+           ImGui::Text("Good %%:  %.1f%%", 100.f * float(renderer->m_stats.goodNrml) / float(total));
+       }
+       ImGui::Spacing();
+       ImGui::Text("Goal to beat: 80%");
        ImGui::End();
 
         processInput();
@@ -165,10 +187,10 @@ void App::run() {
 }
 
 void App::processInput() {
-    ImGuiIO& io = ImGui::GetIO();
+    //ImGuiIO& io = ImGui::GetIO();
 
-    if (io.WantCaptureKeyboard)
-        return;
+    //if (io.WantCaptureKeyboard)
+        //return;
 
     auto isPressed = [&](int key) { return glfwGetKey(window, key) == GLFW_PRESS; };
 
@@ -232,8 +254,8 @@ void App::processInput() {
 }
 
 void App::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) return; // Maus gehört gerade ImGui
+    //ImGuiIO& io = ImGui::GetIO();
+    //if (io.WantCaptureMouse) return; // Maus gehört gerade ImGui
 
     if (button == GLFW_MOUSE_BUTTON_LEFT)
         left_mouse_pressed = (action == GLFW_PRESS);
@@ -242,8 +264,8 @@ void App::mouse_button_callback(GLFWwindow* window, int button, int action, int 
 }
 
 void App::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) return; 
+    //ImGuiIO& io = ImGui::GetIO();
+    //if (io.WantCaptureMouse) return; 
 
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);

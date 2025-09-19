@@ -466,6 +466,7 @@
     <None Include="src\shaders\draw_mesh.vert" />
     <None Include="src\shaders\draw_points.frag" />
     <None Include="src\shaders\draw_points.vert" />
+    <None Include="src\shaders\evaluate_normals.comp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />

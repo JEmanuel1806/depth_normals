@@ -3,9 +3,7 @@
 
 int main(int argc, char* argv[]) {
 
-    std::string plyFile = "data/custom/no_normals/dog7_final.ply";
-
-    std::cout << __cplusplus << std::endl;
+    std::string plyFile = "data/custom/no_normals/horse7_final.ply";
 
     // start with plyFile from string
     if (argc < 2) {
