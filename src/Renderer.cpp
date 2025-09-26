@@ -55,15 +55,9 @@ Renderer::~Renderer() {
 	glDeleteVertexArrays(1, &m_AABO_VAO);
 }
 
-/* -------------------------------------------------------------------------
- * Method: start
- *
- * Initializes shaders, loads point cloud data, uploads it to the GPU,
- * configures vertex attributes and framebuffers.
- * -------------------------------------------------------------------------
- */
+// ---------- Initializes shaders, loads point cloud data, uploads it to the GPU, configures vertex attributes and framebuffers ------------- //
 void Renderer::Start(std::string ply_path, unsigned int width, unsigned int height) {
-	// Load and compile shaders for various render passes
+
 	m_pShaderDepth = new Shader("src/shaders/depth_pass.vert", "src/shaders/depth_pass.frag");
 	m_pShaderBigSplats = new Shader("src/shaders/biggerSplat_pass.vert", "src/shaders/biggerSplat_pass.frag");
 	m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
@@ -81,6 +75,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	m_width = width;
 	m_height = height;
 
+	// for time measurment
 	glGenQueries(1, &qRef);
 	glGenQueries(1, &qSplat);
 	glGenQueries(1, &qAcc);
@@ -89,7 +84,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	glGenQueries(1, &t0);
 	glGenQueries(1, &t1);
 
-	// take ply_path and replace path with "ground truth" to get reference model from GT folder
+	// take ply_path and replace path with "ground truth" to get reference model from Ground Truth folder
 	std::string ply_path_reference = ply_path;
 	std::string term = "no_normals";
 
@@ -109,29 +104,14 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 		std::cerr << "Warning. Point cloud sizes dont match! \n";
 	}
 
-	glGenVertexArrays(1, &m_VAO);
-	glGenBuffers(1, &m_VBO);
-
-	glBindVertexArray(m_VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-	glBufferData(GL_ARRAY_BUFFER, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data(),
-		GL_STATIC_DRAW);
-
-	glVertexAttribIPointer(0, 1, GL_INT, sizeof(Point),
-		(void*)offsetof(Point, m_pointID));
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point),
-		(void*)offsetof(Point, m_position));
-	glEnableVertexAttribArray(1);
+	m_VAO = SetupCloudVAO();
 
 	std::cout << "Rendering " << m_pointsAmount << " points.\n";
 	std::cout << "sizeof(Point): " << sizeof(Point) << std::endl;
 
+	
 	m_lineVAO = SetupLineVAO();
 	m_quadVAO = SetupQuadVAO();
-
 	ConfigureRefFBO();
 	ConfigureSplatFBO();
 	ConfigureAvgSSBO();
@@ -217,11 +197,6 @@ void Renderer::Render(float fps) {
 	glm::mat4 baseView = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
 
 
-	//view = glm::lookAt(baseCamPos, aabb.center(), glm::vec3(0, 1, 0));
-	//view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1, 0, 0));
-
-	// if its ground truth (point cloud with normals) dont calculate obv
-
 	if (!m_pointCloud.m_hasNormals && m_recalculate) {
 		// automatic mode, predefined views for normal estimation
 		if (automatic_mode) {
@@ -300,8 +275,6 @@ void Renderer::Render(float fps) {
 		}
 	}
 
-	// Final pass: visualize the point cloud with or without normals, press N to
-	// switch
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_PROGRAM_POINT_SIZE);
@@ -309,7 +282,6 @@ void Renderer::Render(float fps) {
 
 
 	if (m_showAABB == true) {
-		// Show Bounding Box
 
 		m_pDrawAABB->Use();
 
@@ -481,7 +453,7 @@ void Renderer::Render(float fps) {
 
 void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model) {
 
-	// First pass: render point cloud to fill depth and ID textures (reference textures)
+	// ---------- FIRST PASS ------------- //
 	glBeginQuery(GL_TIME_ELAPSED, qRef);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_fboRef);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -501,7 +473,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	// Second pass: render point cloud with bigger splats and store to 2 textures (splat textures)
+	// ---------- SECOND PASS ------------- //
 	glBeginQuery(GL_TIME_ELAPSED, qSplat);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_fboSplat);
 	//glDepthMask(GL_FALSE);
@@ -525,7 +497,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 
 
-	// Third pass: compute normals from depth buffer, calculate in compute shader 
+	// ---------- THIRD PASS ------------- //
 	glBeginQuery(GL_TIME_ELAPSED, qAcc);
 	glDisable(GL_DEPTH_TEST);
 
@@ -603,11 +575,10 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	
 	splatSize = glm::clamp((float)(1.0 + avgDensity * 2), 1.0f, 1000.0f);
 
-	//std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	// Fourth Pass: Average the accumulated normals from pass before
+	// ---------- FOURTH PASS ------------- //
 	glBeginQuery(GL_TIME_ELAPSED, qFin);
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 	glUseProgram(m_pShaderNormalAvg->m_shaderID);
@@ -663,8 +634,6 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-
-	//std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
 	glBeginQuery(GL_TIME_ELAPSED, qReadBack);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
 	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
@@ -678,13 +647,6 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);	
 
 	glQueryCounter(t1, GL_TIMESTAMP);
-
-	//Point p = m_pointCloud.m_points[200];
-	//std::cout << "Point ID: " << p.m_pointID << std::endl;
-	//std::cout << "Position: " << p.m_position.x << ", " << p.m_position.y << ", " << p.m_position.z << std::endl;
-	//std::cout << "Normal: " << p.m_normal.x << ", " << p.m_normal.y << ", " << p.m_normal.z << std::endl;
-	//std::cout << "sizeof(Point) = " << sizeof(Point) << std::endl;
-	//m_pCamera->HasChanged = false;
 
 
 	GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0, ts0 = 0, ts1 = 0;
@@ -713,9 +675,9 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		<< "Readback to VBO for vis: " << msRB << " ms\n";
 	
 	ComputeNormalStatsGPU(goodNormal, badNormal);
-	// m_pointCloud.m_hasNormals = true;
 }
 
+// Compute normal qualitiy statistics
 void Renderer::ComputeNormalStatsGPU(float goodDeg, float badDeg) {
 	NormalStats zero = { 0,0,0,0 };
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_statsSSBO);
@@ -743,7 +705,7 @@ void Renderer::ComputeNormalStatsGPU(float goodDeg, float badDeg) {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
-
+// Compute normals for reconstructed mesh to enable correct shading
 void Renderer::ComputeMeshNormals(PointCloud& mesh) {
 
 	for (auto& v : mesh.m_points) {
@@ -770,6 +732,36 @@ void Renderer::ComputeMeshNormals(PointCloud& mesh) {
 	}
 
 	mesh.m_hasNormals = true; 
+}
+
+/* -------------------------------------------------------------------------
+ * Helper functions to read data from textures
+ *
+ * Reading the data from the generated normal texture and storing its content in
+ * a vector. Also reading the ids from the helper ID texture and storing it in
+ * an additional array.
+ *
+ * -------------------------------------------------------------------------
+ */
+
+GLuint Renderer::SetupCloudVAO()
+{
+	glGenVertexArrays(1, &m_VAO);
+	glGenBuffers(1, &m_VBO);
+
+	glBindVertexArray(m_VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
+	glBufferData(GL_ARRAY_BUFFER, m_pointsAmount * sizeof(Point), m_pointCloud.m_points.data(),
+		GL_STATIC_DRAW);
+
+	glVertexAttribIPointer(0, 1, GL_INT, sizeof(Point),
+		(void*)offsetof(Point, m_pointID));
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point),
+		(void*)offsetof(Point, m_position));
+	glEnableVertexAttribArray(1);
 }
 
 // VAO for the normal lines
@@ -894,16 +886,6 @@ GLuint Renderer::SetupBBoxVAO(const BoundingBox& box)
 	return m_AABO_VAO;
 }
 
-/* -------------------------------------------------------------------------
- * Helper functions to read data from textures
- *
- * Reading the data from the generated normal texture and storing its content in
- * a vector. Also reading the ids from the helper ID texture and storing it in
- * an additional array.
- *
- * -------------------------------------------------------------------------
- */
-
 void Renderer::ConfigureNormalSSBO() {
 
 	glGenBuffers(1, &m_pointNormalSSBO);
@@ -954,14 +936,6 @@ void Renderer::ConfigureDensitySSBO() {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 }
-
-
-/* -------------------------------------------------------------------------
- * configureFBO
- *
- * Creating three textures (Depth, ID, Normal) to render to with custom FBO
- * -------------------------------------------------------------------------
- */
 
 void Renderer::ConfigureRefFBO() {
 	glGenFramebuffers(1, &m_fboRef);
@@ -1049,9 +1023,6 @@ void Renderer::ConfigureSplatFBO() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-
-
-
 Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {
 
 	BoundingBox boundingBox;
@@ -1092,16 +1063,6 @@ Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {
 	return boundingBox;
 
 }
-
-/* -------------------------------------------------------------------------
- *
- * Helper function to render some additional information in form of text
- * FPS
- * Amount of points
- * Normal information and deviation
- *
- * -------------------------------------------------------------------------
- */
 
 void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT, int id) {
 	glUseProgram(0);

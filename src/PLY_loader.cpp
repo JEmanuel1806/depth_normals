@@ -1,14 +1,10 @@
 #include "PLY_loader.h"
 
 /*
- * load_ply
- *
  * Parses a given PLY file and extracts its data into a PointCloud object.
  *
  * Open the file, parse the header and store encountered properties (x,y,z..). Check the format
  * and extract its content.
- *
- *
  */
 
 PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
@@ -237,7 +233,7 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     return cloud;
 }
 
-
+// exports the point cloud to ASCII ply file, skips invalid normals
 void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
 
     int pointsWritten = pointCloud.PointsAmount();
@@ -279,7 +275,6 @@ void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
                 << normal.x << " " << normal.y << " " << normal.z << "\n";
             }
     }
-
 
     plyOutputFile.close();
 

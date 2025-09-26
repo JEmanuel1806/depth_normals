@@ -5,7 +5,7 @@
 
 class Point {
 public:
-
+    // used padding because alignment
     int m_pointID;
     glm::vec3 _padVec;
     glm::vec3 m_position;
@@ -14,7 +14,7 @@ public:
     float _padB;
     glm::vec3 m_normal;
     float _padC;
-    float m_splatSize;
+    float m_splatSize; // to enable adaptive point size per point
     glm::vec3 _padVecB;
 
     Point()

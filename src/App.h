@@ -13,8 +13,6 @@
 
 #include <sstream>
 #include <string>
-
-
 #include <iostream>
 
 
@@ -27,6 +25,7 @@ public:
 
 	Camera* camera;
 
+	// ---------- Control Handling (Keyboard & Mouse) ------------- //
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
 	bool firstMouse = true;
@@ -39,10 +38,10 @@ public:
 	App(unsigned int w, unsigned int h, std::string inputFile);
 	~App();
 	void run();
+	void setupGUI(float fps);
 	void processInput();
 	void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 	void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
-	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 private:
 	GLFWwindow* window;
 	Renderer* renderer;

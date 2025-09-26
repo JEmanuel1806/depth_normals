@@ -1,20 +1,26 @@
 #include "App.h"
-
+#include <iostream>
+#include <filesystem>
 
 int main(int argc, char* argv[]) {
+    std::string plyFile;
 
-    std::string plyFile = "data/custom/no_normals/horse7_final.ply";
 
-    // start with plyFile from string
+    // Debug mode
     if (argc < 2) {
-        App app(1920, 1080, plyFile);               
-        app.run();
+        plyFile = "data/custom/no_normals/multigen_surfaces.ply";
     }
-    // drag and drop
+    // Drag and Drop
     else {
-        std::string plyFile = argv[1];
-        App app(1920, 1080, plyFile);      
-        app.run();
+        plyFile = argv[1];
     }
-}
 
+    if (!std::filesystem::exists(plyFile)) {
+        std::cerr << "Error: File not found: " << plyFile << std::endl;
+        return 1;
+    }
+
+    App app(1920, 1080, plyFile);
+    app.run();
+    return 0;
+}

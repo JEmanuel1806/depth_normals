@@ -25,7 +25,7 @@ public:
              GLuint badNrml;
          };
 
-
+         // Debug variables for GUI
          bool m_showNormals = false;
          bool m_showPoints = true;
          bool m_showMesh = false;
@@ -64,7 +64,7 @@ public:
          float m_zNear = 0.4f;
          float m_zFar = 100.0f;
 
-         float goodNormal = 10.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
+         float goodNormal = 10.0f; //threshold for a normal to be good (default 10 degrees of difference in dot product)
          float badNormal = 30.0f;  //same for bad (red)
 
          glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 3.0f);
@@ -82,37 +82,11 @@ private:
          PointCloud m_pointCloudGT; // ground truth
          PointCloud m_meshIPSR;
          PointCloud m_meshPoisson;
+         
          GLuint m_meshVAO_IPSR = 0;
          GLuint m_meshVAO_Poisson = 0;
          GLuint m_meshIndexCount_IPSR = 0;
          GLuint m_meshIndexCount_Poisson = 0;
-
-         unsigned int m_height;
-         unsigned int m_width;
-
-         struct BoundingBox {
-             glm::vec3 min;
-             glm::vec3 max;
-
-             glm::vec3 center() const {
-                 return (min + max) * 0.5f;
-             }
-
-             glm::vec3 extent() const {
-                 return (max - min) * 0.5f;
-             }
-
-             glm::vec3 size() const {
-                 return (max - min);
-             }
-         };
-
-         BoundingBox aabb;
-
-         struct DensityBuffer {
-             float densitySum;
-             int counter;
-         };
 
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderBigSplats = nullptr;
@@ -138,6 +112,34 @@ private:
          GLuint m_statsSSBO;
          GLuint m_densitySSBO;
 
+         struct BoundingBox {
+             glm::vec3 min;
+             glm::vec3 max;
+
+             glm::vec3 center() const {
+                 return (min + max) * 0.5f;
+             }
+
+             glm::vec3 extent() const {
+                 return (max - min) * 0.5f;
+             }
+
+             glm::vec3 size() const {
+                 return (max - min);
+             }
+         };
+
+         struct DensityBuffer {
+             float densitySum;
+             int counter;
+         };
+
+         unsigned int m_height;
+         unsigned int m_width;
+         BoundingBox aabb;
+
+
+
 private:
          void ConfigureNormalSSBO();
          void ConfigureGTSSBO();
@@ -147,12 +149,13 @@ private:
          void ConfigureStatsSSBO();
          void ConfigureDensitySSBO();
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
+
+         GLuint SetupCloudVAO();
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
          GLuint SetupMeshVAO(const PointCloud &pc);
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
-         // Render Loop
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
          void ComputeNormalStatsGPU(float goodDeg, float badDeg);
          void ComputeMeshNormals(PointCloud& mesh);
@@ -161,5 +164,4 @@ private:
          void RenderText(float fps, PointCloud pc, PointCloud pcGT, int id);
 
          float angle;
-
 };
