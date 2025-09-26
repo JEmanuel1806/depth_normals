@@ -9,6 +9,7 @@ struct Point {
     vec3 position; float _padA;
     vec3 color;    float _padB;
     vec3 normal;   float _padC;
+    float splatSize;
 };
 
 struct NormalBuffer {
@@ -57,22 +58,19 @@ void main() {
             return;
         }
 
-        if (dot(points[currentID].normal, pointsGT[currentID].normal) < 0.0) {
-            points[currentID].normal = -points[currentID].normal;
-        }
-
         float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0);
-        float theta = degrees(acos(d));
-
-        if (theta > 0.01 && theta <= goodNormal) {   
+        float cosGood = cos(radians(goodNormal));
+        float cosBad  = cos(radians(badNormal));
+        
+        if (d >= cosGood) {
             atomicAdd(stats.goodNrml, 1);
         }
-        else if (theta > goodNormal && theta <= badNormal) { 
+        else if (d >= cosBad) {
             atomicAdd(stats.mediumNrml, 1);
         }
-        else{    
-            points[currentID].color = vec3(1.0f, 0.0f, 0.0f);
+        else {
             atomicAdd(stats.badNrml, 1);
+            points[currentID].color = vec3(1.0, 0.0, 0.0);
         }
     }
 }

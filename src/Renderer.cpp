@@ -138,6 +138,7 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	ConfigureNormalSSBO();
 	ConfigureGTSSBO();
 	ConfigureStatsSSBO();
+	ConfigureDensitySSBO();
 
 	aabb = CalcAABB(m_pointCloud); // Bounding Box of Point Cloud
 	SetupBBoxVAO(aabb);
@@ -427,23 +428,25 @@ void Renderer::Render(float fps) {
 
 		//CommandLine ipsr("ipsr/ipsr.exe");
 		//ipsr.arg("--in");
-		//ipsr.arg("data/custom/no_normals/dog7_final.ply");
+		//ipsr.arg("data/ipsr_data/bimba.ply");
 		//ipsr.arg("--out");
 		//ipsr.arg(outputPathIPSR);
 		//
 		//int exitCode = ipsr.executeAndWait();
 
-		CommandLine poisson("poisson/GPU_PoissonRecon.exe");
+		CommandLine poisson("poisson/PoissonRecon.exe");
+		poisson.arg("--in");
 		poisson.arg(inputPath);
+		poisson.arg("--out");
 		poisson.arg(outputPath);
 		poisson.arg("--depth");
-		poisson.arg("8");
+		poisson.arg("10");
 		poisson.arg("--samplesPerNode");
 		poisson.arg("1.5");
 		poisson.arg("--pointWeight");
-		poisson.arg("4");
-		poisson.arg("--threads");
-		poisson.arg("12");
+		poisson.arg("10");
+		poisson.arg("--ascii");
+
 
 		int exitCode2 = poisson.executeAndWait();
 		std::cout << "PoissonRecon finished with code " << exitCode2 << std::endl;
@@ -472,7 +475,7 @@ void Renderer::Render(float fps) {
 		saveToPLY = false;
 	}
 
-	//RenderText(fps, m_pointCloud, m_pointCloudGT);
+	//RenderText(fps, m_pointCloud, m_pointCloudGT, normalDebugID);
 }
 
 
@@ -564,6 +567,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zNear"), m_zNear);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "zFar"), m_zFar);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
+	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "depthThreshold"), depthThreshold);
 
 
 	// compute shader vars
@@ -571,11 +575,33 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	GLuint workGroupX = (m_width + 7) / 8;
 	GLuint workGroupY = (m_height + 7) / 8;
 	glClearNamedBufferData(m_pointNormalSSBO, GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
+	glClearNamedBufferData(m_densitySSBO, GL_RG32F, GL_RG, GL_FLOAT, nullptr);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, m_densitySSBO);
+
+	glDispatchCompute(workGroupX, workGroupY, 1);
 
 	glDispatchCompute(workGroupX, workGroupY, 1);
 
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+
+	// Adaptive Splat Size Readback
+	std::vector<DensityBuffer> densities(m_pointsAmount);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_densitySSBO);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+		sizeof(DensityBuffer)* m_pointsAmount,
+		densities.data());
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	
+	double avgDensity = 0.0;
+	for (auto& d : densities) {
+		avgDensity += (double)d.counter;
+	}
+	avgDensity /= double(m_pointsAmount);
+	
+	splatSize = glm::clamp((float)(1.0 + avgDensity * 2), 1.0f, 1000.0f);
 
 	//std::cout << "-------------(Re)calculating normals for " << m_pointsAmount << " points.-----------------" << std::endl;
 	glEndQuery(GL_TIME_ELAPSED);
@@ -675,7 +701,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	double msAcc = nsAcc / 1e6;
 	double msAvg = nsAvg / 1e6;
 	double msRB = nsRB / 1e6;
-	double msTotal = (ts1 - ts0) / 1e6;
+	double msTotal = msRef + msSplat + msAcc + msAvg;
 
 
 	std::cout << "Depth Tex  : " << msRef << " ms\n"
@@ -683,7 +709,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		<< "Accumulate Normals  : " << msAcc << " ms\n"
 		<< "Final Averaging  : " << msAvg << " ms\n"
 		<< "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
-		<< "Total (no Readback): " << msTotal - msRB << " ms  ->  " << 1000 / (msTotal - msRB) << " FPS\n"
+		<< "Total (no Readback): " << msTotal << " ms  ->  " << 1000 / (msTotal) << " FPS\n"
 		<< "Readback to VBO for vis: " << msRB << " ms\n";
 	
 	ComputeNormalStatsGPU(goodNormal, badNormal);
@@ -916,6 +942,19 @@ void Renderer::ConfigureStatsSSBO() {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void Renderer::ConfigureDensitySSBO() {
+
+	glGenBuffers(1, &m_densitySSBO);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_densitySSBO);
+	glBufferData(GL_SHADER_STORAGE_BUFFER,
+		m_pointsAmount * sizeof(DensityBuffer),
+		nullptr,
+		GL_DYNAMIC_COPY);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, m_densitySSBO); // binding = 4 wie im Shader
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+}
+
 
 /* -------------------------------------------------------------------------
  * configureFBO
@@ -1064,7 +1103,7 @@ Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {
  * -------------------------------------------------------------------------
  */
 
-void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT) {
+void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT, int id) {
 	glUseProgram(0);
 
 	// Set up orthographic projection for 2D screen-space rendering (e.g., text)
@@ -1078,8 +1117,8 @@ void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT) {
 	ss << "FPS: " << fps
 		<< "\nPoints: " << m_pointsAmount
 		<< "\nSplat Size: " << splatSize
-		<< "\nNormal (Point 200): " << glm::to_string(pc.GetNormalByID(200))
-		<< "\nExpected (Point 200): " << glm::to_string(pcGT.GetNormalByID(200));
+		<< "\nNormal (Point " << id << "): " << glm::to_string(pc.GetNormalByID(id))
+		<< "\nExpected (Point " << id << "): " << glm::to_string(pcGT.GetNormalByID(id));
 	std::string text = ss.str();
 
 	static char buffer[99999];

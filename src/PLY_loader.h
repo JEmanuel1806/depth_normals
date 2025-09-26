@@ -24,6 +24,6 @@ public:
 
 private:
 	PointCloud ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order, int vertices, int faces);
-	PointCloud ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order,int vertices);
+	PointCloud ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order,int vertices, int faces);
 };
 

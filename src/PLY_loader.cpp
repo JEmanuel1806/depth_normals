@@ -68,7 +68,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
         return ExtractAsciiData(ply_file, property_order, vertices, faces);
     }
     else if (ply_format == "binary_little_endian") {
-        return ExtractBinaryData(ply_file, property_order, vertices);
+        return ExtractBinaryData(ply_file, property_order, vertices, faces);
     }
     else {
         std::cerr << "Unsupported PLY format: " << ply_format << std::endl;
@@ -150,12 +150,13 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
 
 PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     const std::vector<std::string>& property_order,
-    int vertices) {
+    int vertices, int faces) {
     PointCloud cloud;
     int id_counter = 0;
     bool has_nx = false, has_ny = false, has_nz = false;
 
-    while (ply_file.peek() != EOF) {
+    // --- Vertices ---
+    for (int i = 0; i < vertices; i++) {
         Point point;
         point.m_pointID = id_counter++;
         int r = 255, g = 255, b = 255;
@@ -209,10 +210,6 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
                 ply_file.read(reinterpret_cast<char*>(&c), 1);
                 b = c;
             }
-            else {
-                // Skip unknown property by type size if needed, or just ignore
-                std::cerr << "Unknown property in binary PLY: " << prop << std::endl;
-            }
         }
 
         point.m_color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
@@ -220,9 +217,26 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     }
 
     cloud.m_hasNormals = has_nx && has_ny && has_nz;
-    std::cerr << "Loaded (binary) points: " << cloud.PointsAmount() << std::endl;
+
+    // --- Faces ---
+    for (int i = 0; i < faces; i++) {
+        uint8_t count;
+        ply_file.read(reinterpret_cast<char*>(&count), sizeof(uint8_t));
+
+        Face face;
+        for (int j = 0; j < count; j++) {
+            int idx;
+            ply_file.read(reinterpret_cast<char*>(&idx), sizeof(int));
+            face.indices.push_back(idx);
+        }
+        cloud.m_faces.push_back(face);
+    }
+
+    std::cerr << "Loaded (binary) points: " << cloud.PointsAmount()
+        << " , faces: " << cloud.m_faces.size() << std::endl;
     return cloud;
 }
+
 
 void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
 

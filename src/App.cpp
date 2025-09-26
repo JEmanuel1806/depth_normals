@@ -155,10 +155,11 @@ void App::run() {
        }
        ImGui::End();
 
-
        ImGui::Begin("Statistics");
        ImGui::Text("FPS: %.1f", fps);
        ImGui::InputFloat("Splat Size", &renderer->splatSize);
+       ImGui::InputFloat("Depth Threshold", &renderer->depthThreshold);
+       ImGui::InputInt("Normal", &renderer->normalDebugID);
        ImGui::Text("Point Cloud Size: %d", renderer->m_pointsAmount);
        uint32_t total = renderer->m_stats.occludedNrml + renderer->m_stats.goodNrml + renderer->m_stats.mediumNrml + renderer->m_stats.badNrml;
        ImGui::Text("Good:     %u", renderer->m_stats.goodNrml);

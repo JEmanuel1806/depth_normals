@@ -57,8 +57,11 @@ public:
          size_t m_pointsAmount = 0;
          size_t m_pointsAmountGT = 0;
 
+         int normalDebugID = 200;
+
          float splatSize = 3.0f;
-         float m_zNear = 0.1f;
+         float depthThreshold = 0.5f;
+         float m_zNear = 0.4f;
          float m_zFar = 100.0f;
 
          float goodNormal = 10.0f; //threshold for a normal to be good (e.g. 10 degrees of difference)
@@ -106,6 +109,11 @@ private:
 
          BoundingBox aabb;
 
+         struct DensityBuffer {
+             float densitySum;
+             int counter;
+         };
+
          Shader* m_pShaderDepth = nullptr;
          Shader* m_pShaderBigSplats = nullptr;
          Shader* m_pShaderPointsOnly = nullptr;
@@ -128,6 +136,7 @@ private:
          GLuint m_pointGTSSBO;
          GLuint m_pointAvgSSBO;
          GLuint m_statsSSBO;
+         GLuint m_densitySSBO;
 
 private:
          void ConfigureNormalSSBO();
@@ -136,6 +145,7 @@ private:
          void ConfigureRefFBO();
          void ConfigureSplatFBO();
          void ConfigureStatsSSBO();
+         void ConfigureDensitySSBO();
          void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
@@ -148,7 +158,7 @@ private:
          void ComputeMeshNormals(PointCloud& mesh);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
-         void RenderText(float fps, PointCloud pc, PointCloud pcGT);
+         void RenderText(float fps, PointCloud pc, PointCloud pcGT, int id);
 
          float angle;
 

@@ -14,12 +14,15 @@ public:
     float _padB;
     glm::vec3 m_normal;
     float _padC;
+    float m_splatSize;
+    glm::vec3 _padVecB;
 
     Point()
         : m_pointID(-1),
         m_position(0.0f),
         m_color(1.0f),
-        m_normal(0.0f, 0.0f, 0.0f)
+        m_normal(0.0f, 0.0f, 0.0f),
+        m_splatSize(1.0f)
     {}
 
     void SetPosition(const glm::vec3& pos);
@@ -29,5 +32,9 @@ public:
     void SetNormal(const glm::vec3& norm);
 
     glm::vec3 GetNormal() const;
+
+    void SetSplatSize(float splatSize);
+
+    float GetSplatSize();
 
 };
