@@ -2,6 +2,7 @@
 
 layout (location = 0) in int ID;
 layout (location = 1) in vec3 position;
+layout(location = 3) in float splatSize;
 
 uniform mat4 view;
 uniform mat4 proj;
@@ -15,5 +16,5 @@ void main()
 {
     vertex_id = ID;
     gl_Position = proj * view * model * vec4(position, 1.0);
-    gl_PointSize = pointSize;
+    gl_PointSize = splatSize;
 }

@@ -1,0 +1,56 @@
+[
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/App.cpp.obj -c E:/Uni/Projects/depth_normals/src/App.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/App.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/App.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/Camera.cpp.obj -c E:/Uni/Projects/depth_normals/src/Camera.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/Camera.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/Camera.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/CommandLine.cpp.obj -c E:/Uni/Projects/depth_normals/src/CommandLine.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/CommandLine.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/CommandLine.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/PLY_loader.cpp.obj -c E:/Uni/Projects/depth_normals/src/PLY_loader.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/PLY_loader.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/PLY_loader.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/Point.cpp.obj -c E:/Uni/Projects/depth_normals/src/Point.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/Point.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/Point.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/PointCloud.cpp.obj -c E:/Uni/Projects/depth_normals/src/PointCloud.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/PointCloud.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/PointCloud.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/Renderer.cpp.obj -c E:/Uni/Projects/depth_normals/src/Renderer.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/Renderer.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/Renderer.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/Shader.cpp.obj -c E:/Uni/Projects/depth_normals/src/Shader.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/Shader.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/Shader.cpp.obj"
+},
+{
+  "directory": "E:/Uni/Projects/depth_normals/build",
+  "command": "C:/Users/Admin/scoop/apps/gcc/current/bin/g++.exe -DGLEW_STATIC @CMakeFiles/depth_normals.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles/depth_normals.dir/src/main.cpp.obj -c E:/Uni/Projects/depth_normals/src/main.cpp",
+  "file": "E:/Uni/Projects/depth_normals/src/main.cpp",
+  "output": "CMakeFiles/depth_normals.dir/src/main.cpp.obj"
+}
+]

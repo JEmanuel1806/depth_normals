@@ -5,6 +5,9 @@ layout(local_size_x = 8, local_size_y = 8) in;
 uniform sampler2D  splat_depth;
 uniform isampler2D splat_id;
 
+uniform sampler2D  ref_depth;
+uniform isampler2D ref_id;
+
 uniform ivec2 screenSize;
 uniform mat4 invProj;
 uniform mat4 view;
@@ -29,6 +32,7 @@ struct DensityBuffer {
     int counter;
 };
 
+// construct 5x5 kernel
 const ivec2 offsets[25] = ivec2[25](
     ivec2(-2,  2), ivec2(-1,  2), ivec2(0,  2), ivec2(1,  2), ivec2(2,  2),
     ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
@@ -42,12 +46,6 @@ float kernelWeights[25];
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
 layout(std430, binding = 4) buffer DensitySumBuffer { DensityBuffer densityBuffer[]; };
-
-
-float delinearize_depth(float z_buffer_depth, float zNear, float zFar) {
-    float z = z_buffer_depth * 2.0 - 1.0;
-    return (2.0 * zNear * zFar) / (zFar + zNear - z * (zFar - zNear));
-}
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
@@ -64,44 +62,58 @@ void main() {
     float currentPixelDepth = texelFetch(splat_depth, currentPixelPos, 0).r;
     int currentPixelID = texelFetch(splat_id, currentPixelPos,0).r;
 
-    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || 
-    currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
-    return;
-    
+    // no calculation for empty pixels
+    if(currentPixelID > maxID || currentPixelID < 0)
+        return;
 
-    // reconstruct points
+    // discard pixels outside of the screen
+    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
+        return;
+    
+    // reconstruct current point
     vec3 reconstructedPoint = getPos(currentPixelPos, currentPixelDepth);
 
     vec3 normalSum = vec3(0);
-
     float sumDist = 0.0;
     int   distCount = 0;
 
-    // 5x5 KERNEL
+    // 5x5 KERNEL calculation
     for (int i = 0; i < 25; ++i)
     {
+        // get current neighbor point of loop
         ivec2 kernelCoord = currentPixelPos + offsets[i];
         float kernelDepth = texelFetch(splat_depth, kernelCoord,0).r;
+        int neighborID = texelFetch(splat_id, kernelCoord, 0).r;
         vec3 neighborPoint = getPos(kernelCoord, kernelDepth);
-        vec3 currentPoint = reconstructedPoint;
-        float depthDifference = neighborPoint.z - currentPoint.z;
+
+        float depthDifference = neighborPoint.z - reconstructedPoint.z;
        
-        vec2 dxy = vec2(offsets[i]);
-        float spatialWeight = exp(-dot(dxy,dxy) / (2.0 * distanceWeight * distanceWeight));
-        
-        float depthWeight = exp(-(depthDifference*depthDifference) / (2.0 * depthThreshold * depthThreshold));
-        
+       // define weights for gaussian kernels in bilateral weighting (spatial and depth weight)
+
+        float spatialWeight = exp(-dot(offsets[i],offsets[i]) / (2.0 * distanceWeight * distanceWeight)); // pixel distance influences weight
+        float depthWeight = exp(-(depthDifference*depthDifference) / (2.0 * depthThreshold * depthThreshold)); // depth difference influences weight
         float combinedWeight = spatialWeight * depthWeight;
+
+        // distance calculation for densitiy within kernel
+        // use reference texture for distance 
+        ivec2 kernelCoordRef = currentPixelPos + offsets[i];
+        int neighborIDRef = texelFetch(ref_id, kernelCoordRef, 0).r;
+        float kernelDepthRef = texelFetch(ref_depth, kernelCoord,0).r;
+        vec3 neighborPointRef = getPos(kernelCoord, kernelDepth);
+
+        if (neighborIDRef < 0 || neighborIDRef > maxID) {
+            continue; 
+    }
 
         // calc distance for splat size
         if (combinedWeight < 1e-6) {
-            kernelPositions[i] = vec3(0);
+            kernelPositions[i] = vec3(0); //invalid neighbor
             kernelWeights[i]   = 0.0;
         } else {
             kernelPositions[i] = neighborPoint;
             kernelWeights[i]   = combinedWeight;
 
-            float dist = length(neighborPoint - currentPoint);
+            float dist = length(neighborPointRef - reconstructedPoint);
             if (dist > 1e-6) {
                 sumDist += dist;
                 distCount++;
@@ -172,6 +184,7 @@ void main() {
         }
     }
     
+    // transform to world space
     vec3 normal = normalize(mat3(invView) * normalSum); 
 
     // count normals

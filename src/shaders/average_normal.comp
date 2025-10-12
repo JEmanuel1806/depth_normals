@@ -17,25 +17,19 @@ struct NormalBuffer {
     int counter;
 };
 
-struct NormalStats {
-    uint occludedNrml;
-    uint goodNrml;
-    uint mediumNrml;
-    uint badNrml;
+struct DensityBuffer {
+    float densitySum;
+    int counter;
 };
 
-layout(std430, binding = 3) buffer StatsBuffer {
-    NormalStats stats;
-};
 
-uniform float goodNormal;
-uniform float badNormal;
 
-vec3 invisible = vec3(0.141f, 0.149f, 0.192f);
 
-layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
-layout(std430, binding = 1) buffer PointGTBuffer   { Point pointsGT[]; };
-layout(std430, binding = 2) buffer PointBuffer     { Point points[]; };
+//vec3 invisible = vec3(1.0f, 1.0f, 1.0f);
+
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; }; //normals from previous shader
+layout(std430, binding = 2) buffer PointBuffer     { Point points[]; }; //finals normals from this shader
+layout(std430, binding = 4) buffer DensitySumBuffer { DensityBuffer densityBuffer[]; };
 
 void main() {
     ivec2 currentPos = ivec2(gl_GlobalInvocationID.xy);
@@ -43,34 +37,15 @@ void main() {
 
     if (currentID >= 0 && currentID <= maxID) {
 
-        if (normalBuffer[currentID].counter <= 1) {
-            atomicAdd(stats.occludedNrml, 1);
-            return;
-        }
+        points[currentID].normal = normalize(normalBuffer[currentID].normal)/(normalBuffer[currentID].counter);
 
-        points[currentID].normal = normalize(
-            normalBuffer[currentID].normal / float(normalBuffer[currentID].counter)
-        );
-
-        if (any(isnan(points[currentID].normal))) {    
-            points[currentID].color = vec3(1.0f, 0.0f, 0.0f);
-            atomicAdd(stats.occludedNrml, 1);
-            return;
-        }
-
-        float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0);
-        float cosGood = cos(radians(goodNormal));
-        float cosBad  = cos(radians(badNormal));
+        if (densityBuffer[currentID].counter > 0) {
+            float avgDist = densityBuffer[currentID].densitySum / float(densityBuffer[currentID].counter);
         
-        if (d >= cosGood) {
-            atomicAdd(stats.goodNrml, 1);
-        }
-        else if (d >= cosBad) {
-            atomicAdd(stats.mediumNrml, 1);
-        }
-        else {
-            atomicAdd(stats.badNrml, 1);
-            points[currentID].color = vec3(1.0, 0.0, 0.0);
+            float splat = avgDist * 2.0;  
+        
+            //points[currentID].splatSize = clamp(splat, 1.0, 1000.0);
+            points[currentID].splatSize = 2.2;
         }
     }
 }

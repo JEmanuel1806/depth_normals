@@ -8,7 +8,7 @@ int main(int argc, char* argv[]) {
 
     // Debug mode
     if (argc < 2) {
-        plyFile = "data/custom/no_normals/multigen_surfaces.ply";
+        plyFile = "data/custom/no_normals/horse7_final.ply";
     }
     // Drag and Drop
     else {

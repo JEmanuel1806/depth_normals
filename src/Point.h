@@ -22,7 +22,7 @@ public:
         m_position(0.0f),
         m_color(1.0f),
         m_normal(0.0f, 0.0f, 0.0f),
-        m_splatSize(1.0f)
+        m_splatSize(2.0f)
     {}
 
     void SetPosition(const glm::vec3& pos);
