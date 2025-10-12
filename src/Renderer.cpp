@@ -447,7 +447,7 @@ void Renderer::Render(float fps) {
 		saveToPLY = false;
 	}
 
-	//RenderText(fps, m_pointCloud, m_pointCloudGT, normalDebugID);
+	RenderText(fps, m_pointCloud, m_pointCloudGT, normalDebugID);
 }
 
 
@@ -762,6 +762,12 @@ GLuint Renderer::SetupCloudVAO()
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point),
 		(void*)offsetof(Point, m_position));
 	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Point),
+		(void*)offsetof(Point, m_splatSize));
+	glEnableVertexAttribArray(3);
+
+	return m_VAO;
 }
 
 // VAO for the normal lines
