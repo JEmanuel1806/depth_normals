@@ -38,6 +38,8 @@ public:
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
          bool automatic_mode = true;
+         
+         float totalTime = 0;
 
          size_t cameraViewPos = 0;
 
@@ -62,7 +64,7 @@ public:
          float globalSplat = 0.0f; //CPU Splat 
          float splatSize = 3.0f; //GPU splat, TODO, not used atm
          float depthThreshold = 0.5f;
-         float m_zNear = 0.4f;
+         float m_zNear = 0.01f;
          float m_zFar = 100.0f;
 
          float goodNormal = 10.0f; //threshold for a normal to be good (default 10 degrees of difference in dot product)

@@ -128,6 +128,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	float meanDist = ComputeSplatSize(m_pointCloud.m_points);
 	std::cout << "Mean Dist: " << meanDist << std::endl;
 	globalSplat = meanDist * 5.0f;
+
+	totalTime = 0;
 	
 
 	GLint currentFB;
@@ -211,7 +213,7 @@ void Renderer::Render(float fps) {
 
 			int nHoriz = (int)cameraAngles.size();
 
-			for (int i = 0; i < nHoriz + 4; ++i) {
+			for (int i = 0; i < nHoriz + 2; ++i) {
 				glm::mat4 view = baseView;
 				glm::vec3 camPos;
 	
@@ -223,14 +225,17 @@ void Renderer::Render(float fps) {
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 
 				}
+				// TOP
 				else if (i == nHoriz) {
 					camPos = aabb.center() + glm::vec3(0, distance, 0);
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 0, -1));
 				}
+				// BOTTOM
 				else if (i == nHoriz + 1) {
 					camPos = aabb.center() + glm::vec3(0, -distance, 0);
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 0, 1));
 				}
+				// DIAGONAL UP FRONT
 				else if (i == nHoriz + 2) {
 					float angle = glm::radians(45.0f);
 					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
@@ -238,6 +243,7 @@ void Renderer::Render(float fps) {
 					camPos = aabb.center() + offset;
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 				}
+				// DIAGONAL DOWN FRONT
 				else if (i == nHoriz + 3) {
 					float angle = glm::radians(-45.0f);
 					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
@@ -245,6 +251,7 @@ void Renderer::Render(float fps) {
 					camPos = aabb.center() + offset;
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 				}
+				// DIAGONAL RIGHT
 				else if (i == nHoriz + 4) {
 					float angle = glm::radians(45.0f);
 					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
@@ -252,28 +259,14 @@ void Renderer::Render(float fps) {
 					camPos = aabb.center() + offset;
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
 				}
+				// DIAGONAL LEFT
 				else if (i == nHoriz + 5) {
 					float angle = glm::radians(-45.0f);
 					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
 					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
 					camPos = aabb.center() + offset;
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				else if (i == nHoriz + 6) {
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(1, 0, 0));
-					rot = glm::rotate(rot, glm::radians(45.0f), glm::vec3(0, 1, 0));
-					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				else if (i == nHoriz + 7) {
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f), glm::vec3(1, 0, 0));
-					rot = glm::rotate(rot, glm::radians(45.0f), glm::vec3(0, 1, 0));
-					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				
+				}		
 				ComputeNormalsForView(view, projection, model);
 			}
 		}
@@ -406,13 +399,13 @@ void Renderer::Render(float fps) {
 		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
 
-		CommandLine ipsr("ipsr/ipsr.exe");
-		ipsr.arg("--in");
-		ipsr.arg("data/custom/no_normals/bimba.ply");
-		ipsr.arg("--out");
-		ipsr.arg(outputPathIPSR);
+		//CommandLine ipsr("ipsr/ipsr.exe");
+		//ipsr.arg("--in");
+		//ipsr.arg("data/custom/no_normals/bimba.ply");
+		//ipsr.arg("--out");
+		//ipsr.arg(outputPathIPSR);
 		
-		int exitCode = ipsr.executeAndWait();
+		//int exitCode = ipsr.executeAndWait();
 
 		CommandLine poisson("poisson/PoissonRecon.exe");
 		poisson.arg("--in");
@@ -658,6 +651,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	double msAvg = nsAvg / 1e6;
 	double msRB = nsRB / 1e6;
 	double msTotal = msRef + msSplat + msAcc + msAvg;
+	totalTime = totalTime + msTotal;
 
 
 	std::cout << "Depth Tex  : " << msRef << " ms\n"
@@ -666,7 +660,10 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		<< "Final Averaging  : " << msAvg << " ms\n"
 		<< "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
 		<< "Total (no Readback): " << msTotal << " ms  ->  " << 1000 / (msTotal) << " FPS\n"
-		<< "Readback to VBO for vis: " << msRB << " ms\n";
+		<< "Readback to VBO for vis: " << msRB << " ms\n"
+		<< "Total execution time: " << totalTime << " ms\n"
+		<< "Total FPS (no Readback): " << totalTime << " ms  ->  " << 1000 / (totalTime) << " FPS\n";
+
 	
 	// ---------- FIFTH PASS ------------- //
 
