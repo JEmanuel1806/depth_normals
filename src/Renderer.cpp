@@ -120,8 +120,15 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	ConfigureStatsSSBO();
 	ConfigureDensitySSBO();
 
-	aabb = CalcAABB(m_pointCloud); // Bounding Box of Point Cloud
+	// calculate AABB of point cloud 
+	aabb = CalcAABB(m_pointCloud); 
 	SetupBBoxVAO(aabb);
+
+	// calculate density of point cloud for splat
+	float meanDist = ComputeSplatSize(m_pointCloud.m_points);
+	std::cout << "Mean Dist: " << meanDist << std::endl;
+	globalSplat = meanDist * 5.0f;
+	
 
 	GLint currentFB;
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFB);
@@ -399,13 +406,13 @@ void Renderer::Render(float fps) {
 		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
 
-		//CommandLine ipsr("ipsr/ipsr.exe");
-		//ipsr.arg("--in");
-		//ipsr.arg("data/custom/no_normals/horse7_final.ply");
-		//ipsr.arg("--out");
-		//ipsr.arg(outputPathIPSR);
-		//
-		//int exitCode = ipsr.executeAndWait();
+		CommandLine ipsr("ipsr/ipsr.exe");
+		ipsr.arg("--in");
+		ipsr.arg("data/custom/no_normals/bimba.ply");
+		ipsr.arg("--out");
+		ipsr.arg(outputPathIPSR);
+		
+		int exitCode = ipsr.executeAndWait();
 
 		CommandLine poisson("poisson/PoissonRecon.exe");
 		poisson.arg("--in");
@@ -605,9 +612,10 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
 	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
+	
+	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "globalSplatSize"), globalSplat); // for cpu splat size compute
 
 
-	// compute shader vars
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, m_densitySSBO);
@@ -627,11 +635,13 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
 	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);
 
+
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);	
 
 	glQueryCounter(t1, GL_TIMESTAMP);
 
+	// Performance Query Management
 
 	GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0, ts0 = 0, ts1 = 0;
 	glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
@@ -772,6 +782,23 @@ GLuint Renderer::SetupLineVAO() {
 	glBindVertexArray(0);
 
 	return m_lineVAO;
+}
+
+// Density Function
+float Renderer::ComputeSplatSize(const std::vector<Point>& points) {
+	float sumDist = 0.0f;
+	size_t samples = 1000; 
+	for (size_t i = 0; i < samples; ++i) {
+		const auto& p = points[i];
+		float minDist = std::numeric_limits<float>::max();
+		for (size_t j = 0; j < 100; ++j) { 
+			const auto& q = points[(i + j * 997) % points.size()];
+			float d = glm::length(p.m_position - q.m_position);
+			if (d > 0.0f && d < minDist) minDist = d;
+		}
+		sumDist += minDist;
+	}
+	return sumDist / samples;
 }
 
 // VAO for screen quad
@@ -1065,7 +1092,7 @@ void Renderer::RenderText(float fps, PointCloud pc, PointCloud pcGT, int id) {
 
 	ss << "FPS: " << fps
 		<< "\nPoints: " << m_pointsAmount
-		<< "\nSplat Size: " << pc.GetPointByID(id)->GetSplatSize()
+		<< "\nSplat Size: " << globalSplat
 		<< "\nNormal (Point " << id << "): " << glm::to_string(pc.GetNormalByID(id))
 		<< "\nExpected (Point " << id << "): " << glm::to_string(pcGT.GetNormalByID(id));
 	std::string text = ss.str();

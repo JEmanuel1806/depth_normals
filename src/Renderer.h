@@ -19,10 +19,10 @@ public:
          GLuint qTotal, qRef, qAcc, qFin, qSplat , qReadBack, t0, t1; //performance query metrics
 
          struct NormalStats {
-             GLuint occludedNrml;
-             GLuint goodNrml;
-             GLuint mediumNrml;
-             GLuint badNrml;
+             GLuint occludedNrml = 0;
+             GLuint goodNrml = 0;
+             GLuint mediumNrml = 0;
+             GLuint badNrml = 0;
          };
 
          // Debug variables for GUI
@@ -59,7 +59,8 @@ public:
 
          int normalDebugID = 200;
 
-         float splatSize = 3.0f;
+         float globalSplat = 0.0f; //CPU Splat 
+         float splatSize = 3.0f; //GPU splat, TODO, not used atm
          float depthThreshold = 0.5f;
          float m_zNear = 0.4f;
          float m_zFar = 100.0f;
@@ -148,7 +149,6 @@ private:
          void ConfigureSplatFBO();
          void ConfigureStatsSSBO();
          void ConfigureDensitySSBO();
-         void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
 
          GLuint SetupCloudVAO();
          GLuint SetupLineVAO();
@@ -157,8 +157,9 @@ private:
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
-         void ComputeNormalStatsGPU(float goodDeg, float badDeg);
          void ComputeMeshNormals(PointCloud& mesh);
+
+         float ComputeSplatSize(const std::vector<Point>& points);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
          void RenderText(float fps, PointCloud pc, PointCloud pcGT, int id);

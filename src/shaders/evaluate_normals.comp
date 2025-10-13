@@ -37,19 +37,22 @@ void main() {
     vec3 normal   = points[currentID].normal;
     vec3 normalGT = pointsGT[currentID].normal;
 
-    if (any(isnan(normal)) || normal == vec3(0)) {
+    // again , subtract normals with (0,0,0) or NaN and classify them as "occluded"
+    if (any(isnan(normal)) || length(normal) < 1e-6) {
       atomicAdd(stats.occludedNrml, 1u);
       points[currentID].color = invisible;
       return;
     }
 
+    // normalize just to make sure 
     normal   = normalize(normal);
     normalGT = normalize(normalGT);
-    if (dot(normal, normalGT) < 0.0) normal = -normal;
-
+    
+    // calculate dot product for angular difference
     float d = clamp(dot(normal, normalGT), -1.0, 1.0);
     float theta = degrees(acos(d));
 
+    // count normals to later display percentage of good and bad normals
     if (theta <= goodNormal) {
         atomicAdd(stats.goodNrml, 1u);
     } else if (theta <= badNormal) {
