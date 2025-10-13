@@ -48,15 +48,17 @@ void main() {
             return;
         }
 
-        points[currentID].normal = normalize(
-            normalBuffer[currentID].normal / float(normalBuffer[currentID].counter)
-        );
-
-        if (any(isnan(points[currentID].normal)) || all(equal(points[currentID].normal, vec3(0.0)))) {   
+         if (any(isnan(normalBuffer[currentID].normal)) || all(equal(normalBuffer[currentID].normal, vec3(0.0)))) {   
             points[currentID].color = vec3(1.0f, 0.0f, 0.0f);
             atomicAdd(stats.occludedNrml, 1);
             return;
         }
+
+        points[currentID].normal = normalize(
+            normalBuffer[currentID].normal / float(normalBuffer[currentID].counter)
+        );
+
+
 
         float d = clamp(dot(points[currentID].normal, pointsGT[currentID].normal), -1.0, 1.0);
         float cosGood = cos(radians(goodNormal));
