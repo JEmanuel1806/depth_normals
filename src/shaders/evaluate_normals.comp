@@ -35,8 +35,7 @@ void main() {
     vec3 n   = points[i].normal;
     vec3 nGT = pointsGT[i].normal;
 
-    if (!finite3(n)   || dot(n,n)   < 1e-12 ||
-        !finite3(nGT) || dot(nGT,nGT) < 1e-12) {
+    if (!finite3(n) || dot(n, n) < 1e-12 || all(equal(n, vec3(0.0))) || any(isnan(n))){
         atomicAdd(stats.occludedNrml, 1u);
         return;
     }

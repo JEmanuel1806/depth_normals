@@ -52,7 +52,7 @@ void main() {
             normalBuffer[currentID].normal / float(normalBuffer[currentID].counter)
         );
 
-        if (any(isnan(points[currentID].normal))) {    
+        if (any(isnan(points[currentID].normal)) || all(equal(points[currentID].normal, vec3(0.0)))) {   
             points[currentID].color = vec3(1.0f, 0.0f, 0.0f);
             atomicAdd(stats.occludedNrml, 1);
             return;
