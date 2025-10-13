@@ -159,7 +159,9 @@ private:
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+         void EvaluateNormals(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
          void ComputeMeshNormals(PointCloud& mesh);
+
 
          float ComputeSplatSize(const std::vector<Point>& points);
 

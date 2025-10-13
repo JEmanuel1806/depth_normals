@@ -164,6 +164,9 @@ void App::setupGUI(float fps)
     if (ImGui::Button("Save PLY File")) {
         renderer->saveToPLY = true;
     }
+    if (ImGui::Button("Recalculate normals")) {
+        renderer->m_recalculate = true;
+    }
     ImGui::End();
 
     ImGui::Begin("Statistics");

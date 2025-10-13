@@ -179,10 +179,10 @@ void Renderer::Render(float fps) {
 	expectedNormal = m_pointCloud.GetNormalByID(200);
 
 	std::vector<float> cameraAngles = {
-	22.5f, 45, 67.5f,
-	90, 112.5f, 135, 157.5f,
-	180, 202.5f, 225, 247.5f,
-	270, 292.5f, 315, 337.5f, 0.0f
+	 45, 
+	90, 135, 
+	180,  225,
+	270,  315,  0.0f
 	};
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
@@ -266,13 +266,15 @@ void Renderer::Render(float fps) {
 					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
 					camPos = aabb.center() + offset;
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}		
+				}	
 				ComputeNormalsForView(view, projection, model);
 			}
+			EvaluateNormals(view, projection, model);
 		}
 		// manual mode, normals update with camera view
 		else {
 			ComputeNormalsForView(view, projection, model);
+			EvaluateNormals(view, projection, model);
 		}
 	}
 
@@ -448,7 +450,7 @@ void Renderer::Render(float fps) {
 		saveToPLY = false;
 	}
 
-	RenderText(fps, m_pointCloud, m_pointCloudGT, normalDebugID);
+	//RenderText(fps, m_pointCloud, m_pointCloudGT, normalDebugID);
 }
 
 
@@ -544,9 +546,13 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "depthThreshold"), depthThreshold);
 
+	glEndQuery(GL_TIME_ELAPSED);
+
+	// ---------- FOURTH PASS ------------- //
 
 	// compute shader vars
-
+	glBeginQuery(GL_TIME_ELAPSED, qFin);
+	
 	GLuint workGroupX = (m_width + 7) / 8;
 	GLuint workGroupY = (m_height + 7) / 8;
 	glClearNamedBufferData(m_pointNormalSSBO, GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
@@ -561,12 +567,9 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	// ---------- FOURTH PASS ------------- //
 
-	glBeginQuery(GL_TIME_ELAPSED, qFin);
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 	glUseProgram(m_pShaderNormalAvg->m_shaderID);
 
@@ -592,20 +595,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_id"), 3);
 
 	// other uniforms
-
-	glUniform2i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "screenSize"), m_width, m_height);
-	glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "view"), 1, GL_FALSE,
-		glm::value_ptr(view));
-	glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invView"), 1, GL_FALSE,
-		glm::value_ptr(glm::inverse(view)));
-	glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "proj"), 1, GL_FALSE,
-		glm::value_ptr(projection));
-	glUniformMatrix4fv(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "invProj"), 1,
-		GL_FALSE, glm::value_ptr(glm::inverse(projection)));
-	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zNear"), m_zNear);
-	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "zFar"), m_zFar);
 	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
-	
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "globalSplatSize"), globalSplat); // for cpu splat size compute
 
 
@@ -618,9 +608,37 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
+	// Performance Query Management
+
+	GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0, ts0 = 0, ts1 = 0;
+	glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
+	glGetQueryObjectui64v(qSplat, GL_QUERY_RESULT, &nsSplat);
+	glGetQueryObjectui64v(qAcc, GL_QUERY_RESULT, &nsAcc);
+	glGetQueryObjectui64v(qFin, GL_QUERY_RESULT, &nsAvg);
+
+	while (true) {
+		GLuint available = 0;
+		glGetQueryObjectuiv(qFin, GL_QUERY_RESULT_AVAILABLE, &available);
+		if (available) break;
+	}
+	glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
+
+	double msRef = nsRef / 1e6;
+	double msSplat = nsSplat / 1e6;
+	double msAcc = nsAcc / 1e6;
+	double msAvg = nsAvg / 1e6;
+	double msTotal = msRef + msSplat + msAcc + msAvg;
+	totalTime += msTotal;
+}
+
+void Renderer::EvaluateNormals(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model)
+{
+	std::cout << std::fixed << std::setprecision(2)
+		<< "Total GPU time: " << totalTime << " ms\n";
+	totalTime = 0;
+
 	// Download the normals computed in 4th pass back to CPU and assign to PC data
 
-	glBeginQuery(GL_TIME_ELAPSED, qReadBack);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
 	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
 
@@ -630,41 +648,8 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 
 
 	glEndQuery(GL_TIME_ELAPSED);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);	
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-	glQueryCounter(t1, GL_TIMESTAMP);
-
-	// Performance Query Management
-
-	GLuint64 nsRef = 0, nsSplat = 0, nsAcc = 0, nsAvg = 0, nsRB = 0, ts0 = 0, ts1 = 0;
-	glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
-	glGetQueryObjectui64v(qSplat, GL_QUERY_RESULT, &nsSplat);
-	glGetQueryObjectui64v(qAcc, GL_QUERY_RESULT, &nsAcc);
-	glGetQueryObjectui64v(qFin, GL_QUERY_RESULT, &nsAvg);
-	glGetQueryObjectui64v(qReadBack, GL_QUERY_RESULT, &nsRB);
-	glGetQueryObjectui64v(t0, GL_QUERY_RESULT, &ts0);
-	glGetQueryObjectui64v(t1, GL_QUERY_RESULT, &ts1);
-
-	double msRef = nsRef / 1e6;
-	double msSplat = nsSplat / 1e6;
-	double msAcc = nsAcc / 1e6;
-	double msAvg = nsAvg / 1e6;
-	double msRB = nsRB / 1e6;
-	double msTotal = msRef + msSplat + msAcc + msAvg;
-	totalTime = totalTime + msTotal;
-
-
-	std::cout << "Depth Tex  : " << msRef << " ms\n"
-		<< "Generate Splats: " << msSplat << " ms\n"
-		<< "Accumulate Normals  : " << msAcc << " ms\n"
-		<< "Final Averaging  : " << msAvg << " ms\n"
-		<< "Normal Calc (Acc + Final): " << msAvg + msAcc << " ms\n"
-		<< "Total (no Readback): " << msTotal << " ms  ->  " << 1000 / (msTotal) << " FPS\n"
-		<< "Readback to VBO for vis: " << msRB << " ms\n"
-		<< "Total execution time: " << totalTime << " ms\n"
-		<< "Total FPS (no Readback): " << totalTime << " ms  ->  " << 1000 / (totalTime) << " FPS\n";
-
-	
 	// ---------- FIFTH PASS ------------- //
 
 	NormalStats zero = { 0,0,0,0 };
