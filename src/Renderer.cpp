@@ -617,11 +617,12 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
+	// Download the normals computed in 4th pass back to CPU and assign to PC data
+
 	glBeginQuery(GL_TIME_ELAPSED, qReadBack);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pointAvgSSBO);
 	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Point) * m_pointsAmount, m_pointCloud.m_points.data());
 
-	// back to VBO for arrow vis
 	glBindBuffer(GL_COPY_READ_BUFFER, m_pointAvgSSBO);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, m_VBO);
 	glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(Point) * m_pointsAmount);

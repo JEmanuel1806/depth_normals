@@ -23,9 +23,6 @@ struct DensityBuffer {
 };
 
 
-
-//vec3 invisible = vec3(1.0f, 1.0f, 1.0f);
-
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; }; //normals from previous shader
 layout(std430, binding = 2) buffer PointBuffer     { Point points[]; }; //finals normals from this shader
 layout(std430, binding = 4) buffer DensitySumBuffer { DensityBuffer densityBuffer[]; };
@@ -38,13 +35,13 @@ void main() {
 
         points[currentID].normal = normalize(normalBuffer[currentID].normal)/(normalBuffer[currentID].counter);
 
-        if (densityBuffer[currentID].counter > 0) {
-            float avgDist = densityBuffer[currentID].densitySum / float(densityBuffer[currentID].counter);
+        //if (densityBuffer[currentID].counter > 0) {
+            //float avgDist = densityBuffer[currentID].densitySum / float(densityBuffer[currentID].counter);
         
-            float splat = avgDist * 2.0;  
+            //float splat = avgDist * 2.0;  
         
             //points[currentID].splatSize = clamp(splat, 1.0, 1000.0);
             points[currentID].splatSize = 2.2;
-        }
+        
     }
 }
