@@ -610,7 +610,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	// compute shader vars
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, m_pointAvgSSBO);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, m_densitySSBO);
 
 	glDispatchCompute(workGroupX, workGroupY, 1);
 
