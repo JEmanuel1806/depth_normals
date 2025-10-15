@@ -18,9 +18,9 @@ uniform float maxID;
 uniform float zFar;
 uniform float zNear;
 
-uniform float distanceWeight = 6; 
-float depthThreshold = 0.02;
-// uniform float depthCutoff = 0.001;
+uniform float distanceWeight = 3; 
+uniform float depthThreshold;
+uniform float depthCutoff = 0.01;
 
 struct NormalBuffer{
     vec3 normal;
@@ -33,16 +33,14 @@ struct DensityBuffer {
 };
 
 // construct 5x5 kernel
-const ivec2 offsets[25] = ivec2[25](
-    ivec2(-2,  2), ivec2(-1,  2), ivec2(0,  2), ivec2(1,  2), ivec2(2,  2),
-    ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
-    ivec2(-2,  0), ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0), ivec2(2,  0),
-    ivec2(-2, -1), ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1), ivec2(2, -1),
-    ivec2(-2, -2), ivec2(-1, -2), ivec2(0, -2), ivec2(1, -2), ivec2(2, -2)
+const ivec2 offsets[9] = ivec2[9](
+    ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1),
+    ivec2(-1,  0), ivec2(0,  0), ivec2(1,  0),
+    ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1)
 );
 
-vec3 kernelPositions[25];
-float kernelWeights[25];
+vec3 kernelPositions[9];
+float kernelWeights[9];
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
 layout(std430, binding = 4) buffer DensitySumBuffer { DensityBuffer densityBuffer[]; };
@@ -78,7 +76,7 @@ void main() {
     int   distCount = 0;
 
     // 5x5 KERNEL calculation
-    for (int i = 0; i < 25; ++i)
+    for (int i = 0; i < 9; ++i)
     {
         // get current neighbor point of loop
         ivec2 kernelCoord = currentPixelPos + offsets[i];
@@ -123,75 +121,41 @@ void main() {
 
     // Kernel neighbor calculation
 
-    vec3 leftNext  = kernelPositions[11];  // -1, 0
-    vec3 leftFar   = kernelPositions[10];  // -2, 0
-    vec3 rightNext = kernelPositions[13];  // +1, 0
-    vec3 rightFar  = kernelPositions[14];  // +2, 0
+    vec3 leftNext  = kernelPositions[3];   // -1,  0
+    vec3 rightNext = kernelPositions[5];   // +1,  0
     
-    vec3 upNext    = kernelPositions[7];   // 0, -1
-    vec3 upFar     = kernelPositions[2];   // 0, -2
-    vec3 downNext  = kernelPositions[17];  // 0, +1
-    vec3 downFar   = kernelPositions[22];  // 0, +2
+    vec3 upNext    = kernelPositions[1];   //  0, -1
+    vec3 downNext  = kernelPositions[7];   //  0, +1
     
-    vec3 upLeft    = kernelPositions[6];   // -1, -1
-    vec3 upRight   = kernelPositions[8];   // +1, -1
-    vec3 downLeft  = kernelPositions[16];  // -1, +1
-    vec3 downRight = kernelPositions[18];  // +1, +1
-    
-    vec3 upLeftFar    = kernelPositions[0];   // -2, -2
-    vec3 upRightFar   = kernelPositions[4];   // +2, -2
-    vec3 downLeftFar  = kernelPositions[20];  // -2, +2
-    vec3 downRightFar = kernelPositions[24];  // +2, +2
+    vec3 upLeft    = kernelPositions[0];   // -1, -1
+    vec3 upRight   = kernelPositions[2];   // +1, -1
+    vec3 downLeft  = kernelPositions[6];   // -1, +1
+    vec3 downRight = kernelPositions[8];   // +1, +1
         
 
     if (length(rightNext) > 1e-6 && length(leftNext) > 1e-6 &&
         length(upNext)    > 1e-6 && length(downNext) > 1e-6) {
-        
-        float wpair = kernelWeights[13] * kernelWeights[11] *
-                      kernelWeights[7]  * kernelWeights[17];
+
+        float wpair = kernelWeights[5] * kernelWeights[3] *
+                      kernelWeights[1] * kernelWeights[7];
         if (wpair > 1e-6) {
             normalSum += wpair * normalize(cross(rightNext - leftNext, upNext - downNext));
         }
     }
-    
+
     if (length(downLeft)  > 1e-6 && length(upRight)   > 1e-6 &&
         length(downRight) > 1e-6 && length(upLeft)    > 1e-6) {
-        
-        float wpair = kernelWeights[18] * kernelWeights[16] *
-                      kernelWeights[6]  * kernelWeights[8];
+
+        float wpair = kernelWeights[6] * kernelWeights[2] *
+                      kernelWeights[8] * kernelWeights[0];
         if (wpair > 1e-6) {
             normalSum += wpair * normalize(cross(downLeft - upRight, downRight - upLeft));
-        }
-    }
-    
-    if (length(rightFar) > 1e-6 && length(leftFar) > 1e-6 &&
-        length(upFar)    > 1e-6 && length(downFar) > 1e-6) {
-        
-        float wpair = kernelWeights[14] * kernelWeights[10] *
-                      kernelWeights[2]  * kernelWeights[22];
-        if (wpair > 1e-6) {
-            normalSum += wpair * normalize(cross(rightFar - leftFar, upFar - downFar));
-        }
-    }
-    
-    if (length(downLeftFar)  > 1e-6 && length(upRightFar)   > 1e-6 &&
-        length(downRightFar) > 1e-6 && length(upLeftFar)    > 1e-6) {
-        
-        float wpair = kernelWeights[24] * kernelWeights[20] *
-                      kernelWeights[0]  * kernelWeights[4];
-        if (wpair > 1e-6) {
-            normalSum += wpair * normalize(cross(downLeftFar - upRightFar, downRightFar - upLeftFar));
         }
     }
     
     // transform to world space
     vec3 normal = normalize(mat3(invView) * normalSum); 
 
-    
-    vec3 prevNormal = normalBuffer[currentPixelID].normal;  // running average so far
-    if (dot(normal, prevNormal) < 0.0)
-        normal = -normal;
-    
     // count normals
 
     atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);

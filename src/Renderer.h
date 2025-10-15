@@ -62,8 +62,8 @@ public:
          int normalDebugID = 200;
 
          float globalSplat = 0.0f; //CPU Splat 
-         float splatSize = 3.0f; //GPU splat, TODO, not used atm
-         float depthThreshold = 0.5f;
+         float splatSize = 5.0f; //GPU splat, TODO, not used atm
+         float depthThreshold = 20.0f;
          float m_zNear = 0.01f;
          float m_zFar = 100.0f;
 
@@ -163,7 +163,7 @@ private:
          void ComputeMeshNormals(PointCloud& mesh);
 
 
-         float ComputeSplatSize(const std::vector<Point>& points);
+         float ComputeSplatSize(const std::vector<Point>& points, const BoundingBox& aabb);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
          void RenderText(float fps, PointCloud pc, PointCloud pcGT, int id);

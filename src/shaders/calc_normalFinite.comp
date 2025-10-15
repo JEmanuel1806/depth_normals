@@ -1,0 +1,74 @@
+#version 450 core
+#extension GL_NV_shader_atomic_float : enable
+layout(local_size_x = 8, local_size_y = 8) in;
+
+uniform sampler2D  splat_depth;
+uniform isampler2D splat_id;
+
+uniform ivec2 screenSize;
+uniform mat4 invProj;
+uniform mat4 view;
+uniform mat4 invView;
+uniform float maxID;
+
+uniform float zFar;
+uniform float zNear;
+
+struct NormalBuffer {
+    vec3 normal;
+    int counter;
+};
+
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
+
+vec3 getPos(ivec2 fragCoord, float depth) {
+    vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
+    float ndcDepth = depth * 2.0 - 1.0;
+    vec4 clipSpace = vec4(ndc, ndcDepth, 1.0);
+    vec4 viewSpace = invProj * clipSpace;
+    viewSpace /= viewSpace.w;
+    return viewSpace.xyz;
+}
+
+void main() {
+    ivec2 currentPixelPos = ivec2(gl_GlobalInvocationID.xy);
+
+    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 ||
+        currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1)
+        return;
+
+    float depthCenter = texelFetch(splat_depth, currentPixelPos, 0).r;
+    int idCenter = texelFetch(splat_id, currentPixelPos, 0).r;
+    if (idCenter < 0 || idCenter > maxID)
+        return;
+
+    float depthLeft  = texelFetch(splat_depth, currentPixelPos + ivec2(-1, 0), 0).r;
+    float depthRight = texelFetch(splat_depth, currentPixelPos + ivec2( 1, 0), 0).r;
+    float depthUp    = texelFetch(splat_depth, currentPixelPos + ivec2( 0,-1), 0).r;
+    float depthDown  = texelFetch(splat_depth, currentPixelPos + ivec2( 0, 1), 0).r;
+
+    vec3 posC = getPos(currentPixelPos, depthCenter);
+    vec3 posL = getPos(currentPixelPos + ivec2(-1, 0), depthLeft);
+    vec3 posR = getPos(currentPixelPos + ivec2( 1, 0), depthRight);
+    vec3 posU = getPos(currentPixelPos + ivec2( 0,-1), depthUp);
+    vec3 posD = getPos(currentPixelPos + ivec2( 0, 1), depthDown);
+
+    vec3 dx = posR - posL;
+    vec3 dy = posD - posU;
+
+    if (length(dx) < 1e-6 || length(dy) < 1e-6)
+        return;
+
+    vec3 nView = normalize(cross(dx, dy));
+
+    vec3 nWorld = normalize(mat3(invView) * nView);
+
+    vec3 prevNormal = normalBuffer[idCenter].normal; 
+    if (dot(nWorld, prevNormal) < 0.0)
+        nWorld = -nWorld;
+
+    atomicAdd(normalBuffer[idCenter].normal.x, nWorld.x);
+    atomicAdd(normalBuffer[idCenter].normal.y, nWorld.y);
+    atomicAdd(normalBuffer[idCenter].normal.z, nWorld.z);
+    atomicAdd(normalBuffer[idCenter].counter, 1);
+}

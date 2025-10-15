@@ -183,9 +183,9 @@ void App::setupGUI(float fps)
     ImGui::Text("Total points with normals: %u", total - renderer->m_stats.occludedNrml);
     if (total) {
         ImGui::Text("Good %%:  %.1f%%", 100.f * float(renderer->m_stats.goodNrml) / float(total));
+        ImGui::Text("Skipped/NaN %%:  %.1f%%", 100.f * float(renderer->m_stats.occludedNrml) / float(total));
     }
     ImGui::Spacing();
-    ImGui::Text("Goal to beat: 80%");
     ImGui::End();
 }
 
@@ -214,12 +214,14 @@ void App::processInput() {
     // adjust point size of pointcloud 
     if (isPressed(GLFW_KEY_KP_ADD) && !key_pressed) {
         renderer->splatSize++;
+        renderer->globalSplat++;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_RELEASE) key_pressed = false;
 
     if (isPressed(GLFW_KEY_KP_SUBTRACT) && !key_pressed) {
         renderer->splatSize--;
+        renderer->globalSplat--;
         key_pressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_RELEASE) key_pressed = false;

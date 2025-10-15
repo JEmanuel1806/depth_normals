@@ -15,6 +15,11 @@
 #include <thread>
 #include <chrono>
 
+#include <vector>
+#include <random>
+#include <limits>
+#include <algorithm>
+
 #include "Renderer.h"
 #include "glm/gtx/string_cast.hpp"
 
@@ -125,9 +130,10 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	SetupBBoxVAO(aabb);
 
 	// calculate density of point cloud for splat
-	float meanDist = ComputeSplatSize(m_pointCloud.m_points);
-	std::cout << "Mean Dist: " << meanDist << std::endl;
-	globalSplat = meanDist * 5.0f;
+	//float meanDist = ComputeSplatSize(m_pointCloud.m_points, aabb);
+	//std::cout << "Density: " << meanDist << std::endl;
+	//globalSplat = 1.05f * pow(meanDist, -0.6f);
+	//std::cout << "Adaptive Splat Size (from density): " << globalSplat << std::endl;
 
 	totalTime = 0;
 	
@@ -162,9 +168,10 @@ void Renderer::Render(float fps) {
 		glm::perspective(glm::radians(m_pCamera->m_zoom), float(m_width) / float(m_height), m_zNear, m_zFar);
    
 	glm::vec3 viewPos = m_pCamera->m_vecPosition;
-	glm::vec3 lightColor = glm::vec3(1.0f);            
-	glm::vec3 objectColor = glm::vec3(0.0f, 0.7f, 1.0f); 
-
+	glm::vec3 lightColor = glm::vec3(1.0f);         
+	// turquoise 0.0f, 0.7f, 1.0f
+	glm::vec3 objectColor = glm::vec3(0.161, 0.537, 0.839); // color of 3D Mesh MESH COLOR
+	
 	// Just for spinning the pointcloud with arrow keys
 	if (m_spinPointCloudLeft) {
 		angle = angle - 0.05f;
@@ -179,16 +186,16 @@ void Renderer::Render(float fps) {
 	expectedNormal = m_pointCloud.GetNormalByID(200);
 
 	std::vector<float> cameraAngles = {
-	 45, 
-	90, 135, 
+	45, 
+	90,	  135, 
 	180,  225,
 	270,  315,  0.0f
 	};
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
 
-	glClearColor(0.141f, 0.149f, 0.192f, 1.0f);
-	//glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	// glClearColor(0.141f, 0.149f, 0.192f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// position the frame capture camera in relation to the Bounding Box of the point cloud -> guarnatee consistent view
 
@@ -235,38 +242,38 @@ void Renderer::Render(float fps) {
 					camPos = aabb.center() + glm::vec3(0, -distance, 0);
 					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 0, 1));
 				}
-				// DIAGONAL UP FRONT
-				else if (i == nHoriz + 2) {
-					float angle = glm::radians(45.0f);
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
-					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				// DIAGONAL DOWN FRONT
-				else if (i == nHoriz + 3) {
-					float angle = glm::radians(-45.0f);
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
-					glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				// DIAGONAL RIGHT
-				else if (i == nHoriz + 4) {
-					float angle = glm::radians(45.0f);
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
-					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}
-				// DIAGONAL LEFT
-				else if (i == nHoriz + 5) {
-					float angle = glm::radians(-45.0f);
-					glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
-					glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
-					camPos = aabb.center() + offset;
-					view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
-				}	
+				//// DIAGONAL UP FRONT
+				//else if (i == nHoriz + 2) {
+				//	float angle = glm::radians(45.0f);
+				//	glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
+				//	glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+				//	camPos = aabb.center() + offset;
+				//	view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				//}
+				//// DIAGONAL DOWN FRONT
+				//else if (i == nHoriz + 3) {
+				//	float angle = glm::radians(-45.0f);
+				//	glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1, 0, 0));
+				//	glm::vec3 offset = rot * glm::vec4(0, 0, distance, 1.0);
+				//	camPos = aabb.center() + offset;
+				//	view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				//}
+				//// DIAGONAL RIGHT
+				//else if (i == nHoriz + 4) {
+				//	float angle = glm::radians(45.0f);
+				//	glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
+				//	glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
+				//	camPos = aabb.center() + offset;
+				//	view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				//}
+				//// DIAGONAL LEFT
+				//else if (i == nHoriz + 5) {
+				//	float angle = glm::radians(-45.0f);
+				//	glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
+				//	glm::vec3 offset = rot * glm::vec4(distance, 0, 0, 1.0);
+				//	camPos = aabb.center() + offset;
+				//	view = glm::lookAt(camPos, aabb.center(), glm::vec3(0, 1, 0));
+				//}	
 				ComputeNormalsForView(view, projection, model);
 			}
 			EvaluateNormals(view, projection, model);
@@ -324,6 +331,7 @@ void Renderer::Render(float fps) {
 		glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 
 		// draw normal lines
+		glEnable(GL_DEPTH_TEST);
 		m_pShaderPointsNormals->Use();
 		glUniformMatrix4fv(glGetUniformLocation(m_pShaderPointsNormals->m_shaderID, "view"), 1,
 			GL_FALSE, glm::value_ptr(view));
@@ -400,14 +408,14 @@ void Renderer::Render(float fps) {
 
 		plyLoader.SavePLY(inputPath, m_pointCloud);
 		std::cout << "Exported ply file! \n";
-
-		//CommandLine ipsr("ipsr/ipsr.exe");
-		//ipsr.arg("--in");
-		//ipsr.arg("data/custom/no_normals/bimba.ply");
-		//ipsr.arg("--out");
-		//ipsr.arg(outputPathIPSR);
 		
-		//int exitCode = ipsr.executeAndWait();
+		CommandLine ipsr("ipsr/ipsr.exe");
+		ipsr.arg("--in");
+		ipsr.arg("data/custom/no_normals/lucy.ply");
+		ipsr.arg("--out");
+		ipsr.arg(outputPathIPSR);
+		
+		int exitCode = ipsr.executeAndWait();
 
 		CommandLine poisson("poisson/PoissonRecon.exe");
 		poisson.arg("--in");
@@ -493,12 +501,12 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 		glm::value_ptr(projection));
 	glUniformMatrix4fv(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "model"), 1, GL_FALSE,
 		glm::value_ptr(model));
+	glUniform1f(glGetUniformLocation(m_pShaderBigSplats->m_shaderID, "pointSize"), splatSize);
 
 	glBindVertexArray(m_VAO);
 	glDrawArrays(GL_POINTS, 0, m_pointsAmount);
 	glBindVertexArray(0);
 	glEndQuery(GL_TIME_ELAPSED);
-	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 
 
 	// ---------- THIRD PASS ------------- //
@@ -506,7 +514,6 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glBeginQuery(GL_TIME_ELAPSED, qAcc);
 	glDisable(GL_DEPTH_TEST);
 
-	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
 	glUseProgram(m_pShaderNormalCompute->m_shaderID);
 
 	// reference textures
@@ -546,12 +553,7 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "maxID"), m_pointsAmount);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalCompute->m_shaderID, "depthThreshold"), depthThreshold);
 
-	glEndQuery(GL_TIME_ELAPSED);
-
-	// ---------- FOURTH PASS ------------- //
-
 	// compute shader vars
-	glBeginQuery(GL_TIME_ELAPSED, qFin);
 	
 	GLuint workGroupX = (m_width + 7) / 8;
 	GLuint workGroupY = (m_height + 7) / 8;
@@ -563,41 +565,23 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 
 	glDispatchCompute(workGroupX, workGroupY, 1);
 
-	glDispatchCompute(workGroupX, workGroupY, 1);
 
+	glEndQuery(GL_TIME_ELAPSED);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	
+	// ---------- FOURTH PASS ------------- //
 
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-
-	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
+	glBeginQuery(GL_TIME_ELAPSED, qFin);
 	glUseProgram(m_pShaderNormalAvg->m_shaderID);
 
 	// reference textures
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_depthTexRef);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_depth"), 0);
-
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, m_idTexRef);
 	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "ref_id"), 1);
 
-	// splat textures
-
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, m_depthTexSplat);
-	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_depth"), 2);
-
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, m_idTexSplat);
-	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "splat_id"), 3);
-
 	// other uniforms
 	glUniform1i(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "maxID"), m_pointsAmount);
 	glUniform1f(glGetUniformLocation(m_pShaderNormalAvg->m_shaderID, "globalSplatSize"), globalSplat); // for cpu splat size compute
-
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_pointNormalSSBO);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pointAvgSSBO);
@@ -616,25 +600,24 @@ void Renderer::ComputeNormalsForView(const glm::mat4& view, const glm::mat4& pro
 	glGetQueryObjectui64v(qAcc, GL_QUERY_RESULT, &nsAcc);
 	glGetQueryObjectui64v(qFin, GL_QUERY_RESULT, &nsAvg);
 
-	while (true) {
-		GLuint available = 0;
-		glGetQueryObjectuiv(qFin, GL_QUERY_RESULT_AVAILABLE, &available);
-		if (available) break;
-	}
-	glGetQueryObjectui64v(qRef, GL_QUERY_RESULT, &nsRef);
-
 	double msRef = nsRef / 1e6;
 	double msSplat = nsSplat / 1e6;
 	double msAcc = nsAcc / 1e6;
 	double msAvg = nsAvg / 1e6;
 	double msTotal = msRef + msSplat + msAcc + msAvg;
 	totalTime += msTotal;
+
+	std::cout << "Pass time: " << msTotal << "ms\n";
 }
 
 void Renderer::EvaluateNormals(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model)
 {
+
+	double fps = (totalTime > 0.0) ? 1000.0 / totalTime : 0.0;
+
 	std::cout << std::fixed << std::setprecision(2)
-		<< "Total GPU time: " << totalTime << " ms\n";
+		<< "Total GPU time: " << totalTime << " ms\n"
+		<< " ms (" << fps << " FPS)\n";
 	totalTime = 0;
 
 	// Download the normals computed in 4th pass back to CPU and assign to PC data
@@ -766,22 +749,6 @@ GLuint Renderer::SetupLineVAO() {
 	return m_lineVAO;
 }
 
-// Density Function
-float Renderer::ComputeSplatSize(const std::vector<Point>& points) {
-	float sumDist = 0.0f;
-	size_t samples = 1000; 
-	for (size_t i = 0; i < samples; ++i) {
-		const auto& p = points[i];
-		float minDist = std::numeric_limits<float>::max();
-		for (size_t j = 0; j < 100; ++j) { 
-			const auto& q = points[(i + j * 997) % points.size()];
-			float d = glm::length(p.m_position - q.m_position);
-			if (d > 0.0f && d < minDist) minDist = d;
-		}
-		sumDist += minDist;
-	}
-	return sumDist / samples;
-}
 
 // VAO for screen quad
 GLuint Renderer::SetupQuadVAO() {
@@ -1019,6 +986,7 @@ void Renderer::ConfigureSplatFBO() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
 
 Renderer::BoundingBox Renderer::CalcAABB(PointCloud& pc) {
 

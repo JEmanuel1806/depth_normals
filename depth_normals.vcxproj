@@ -451,6 +451,7 @@
     <None Include="src\shaders\biggerSplat_pass.frag" />
     <None Include="src\shaders\biggerSplat_pass.vert" />
     <None Include="src\shaders\calc_normal.comp" />
+    <None Include="src\shaders\calc_normal3.comp" />
     <None Include="src\shaders\debug\debug_id_tex.frag" />
     <None Include="src\shaders\debug\debug_id_tex.vert" />
     <None Include="src\shaders\debug\debug_normal_tex.frag" />

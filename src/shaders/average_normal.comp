@@ -45,5 +45,5 @@ void main() {
     points[currentID].normal = normalize(normalBuffer[currentID].normal);
     
     // adaptive splat size
-    points[currentID].splatSize = 2;
+    //points[currentID].splatSize = 3;
 }

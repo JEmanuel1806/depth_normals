@@ -81,8 +81,7 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
     std::string line;
     bool has_nx = false, has_ny = false, has_nz = false;
 
-    std::cout << vertices << std::endl;
-
+    cloud.m_points.reserve(vertices);
     for (int i = 0; i < vertices && std::getline(ply_file, line); i++) {
         std::istringstream iss(line);
         Point point;
