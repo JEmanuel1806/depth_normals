@@ -19,16 +19,11 @@ uniform float zFar;
 uniform float zNear;
 
 uniform float distanceWeight = 6; 
-float depthThreshold = 0.02;
+uniform float depthThreshold;
 // uniform float depthCutoff = 0.001;
 
 struct NormalBuffer{
     vec3 normal;
-    int counter;
-};
-
-struct DensityBuffer {
-    float densitySum;
     int counter;
 };
 
@@ -45,7 +40,6 @@ vec3 kernelPositions[25];
 float kernelWeights[25];
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
-layout(std430, binding = 4) buffer DensitySumBuffer { DensityBuffer densityBuffer[]; };
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
@@ -204,7 +198,5 @@ void main() {
     if (distCount > 0) {
         float meanDist = sumDist / float(distCount);
         float density = 1.0 / meanDist; 
-        atomicAdd(densityBuffer[currentPixelID].densitySum, density);
-        atomicAdd(densityBuffer[currentPixelID].counter, 1);
     }
 }

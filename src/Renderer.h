@@ -23,6 +23,7 @@ public:
              GLuint goodNrml = 0;
              GLuint mediumNrml = 0;
              GLuint badNrml = 0;
+             GLuint flippedNrml = 0;
          };
 
          // Debug variables for GUI

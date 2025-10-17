@@ -67,8 +67,8 @@ void Renderer::Start(std::string ply_path, unsigned int width, unsigned int heig
 	m_pShaderBigSplats = new Shader("src/shaders/biggerSplat_pass.vert", "src/shaders/biggerSplat_pass.frag");
 	m_pShaderPointsOnly = new Shader("src/shaders/draw_points.vert", "src/shaders/draw_points.frag");
 	m_pShaderMesh = new Shader("src/shaders/draw_mesh.vert", "src/shaders/draw_mesh.frag");
-	m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
-	m_pShaderNormalCompute = new Shader("src/shaders/calc_normal.comp");
+	//m_pShaderCalcNormal = new Shader("src/shaders/calc_normal.vert", "src/shaders/calc_normal.frag");
+	m_pShaderNormalCompute = new Shader("src/shaders/calc_normal3.comp");
 	m_pShaderNormalAvg = new Shader("src/shaders/average_normal.comp");
 	m_pShaderEvaluateNormal = new Shader("src/shaders/evaluate_normals.comp");
 	m_pShaderPointsNormals = new Shader("src/shaders/draw_lines.vert", "src/shaders/draw_lines.geom",
@@ -170,7 +170,7 @@ void Renderer::Render(float fps) {
 	glm::vec3 viewPos = m_pCamera->m_vecPosition;
 	glm::vec3 lightColor = glm::vec3(1.0f);         
 	// turquoise 0.0f, 0.7f, 1.0f
-	glm::vec3 objectColor = glm::vec3(0.161, 0.537, 0.839); // color of 3D Mesh MESH COLOR
+	glm::vec3 objectColor = glm::vec3(0.839, 0.161, 0.592); // color of 3D Mesh MESH COLOR
 	
 	// Just for spinning the pointcloud with arrow keys
 	if (m_spinPointCloudLeft) {
@@ -187,9 +187,13 @@ void Renderer::Render(float fps) {
 
 	std::vector<float> cameraAngles = {
 	45, 
-	90,	  135, 
-	180,  225,
-	270,  315,  0.0f
+	90,	  
+	135, 
+	180,  
+	225,
+	270,  
+	315,  
+	0.0f
 	};
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0, 1.0, 0.0));
@@ -411,7 +415,7 @@ void Renderer::Render(float fps) {
 		
 		CommandLine ipsr("ipsr/ipsr.exe");
 		ipsr.arg("--in");
-		ipsr.arg("data/custom/no_normals/lucy.ply");
+		ipsr.arg("data/custom/no_normals/igea.ply");
 		ipsr.arg("--out");
 		ipsr.arg(outputPathIPSR);
 		

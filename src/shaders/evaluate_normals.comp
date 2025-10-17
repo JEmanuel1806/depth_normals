@@ -16,6 +16,7 @@ struct NormalStats {
     uint goodNrml;
     uint mediumNrml;
     uint badNrml;
+    uint flippedNrml;
 };
 
 uniform float goodNormal;
@@ -52,13 +53,21 @@ void main() {
     float d = clamp(dot(normal, normalGT), -1.0, 1.0);
     float theta = degrees(acos(d));
 
+    // detect probably flipped normals
+    if (d < 0.0) {
+    atomicAdd(stats.flippedNrml, 1u);
+    points[currentID].color = vec3(1.0, 1.0, 0.0); 
+}
+
     // count normals to later display percentage of good and bad normals
     if (theta <= goodNormal) {
         atomicAdd(stats.goodNrml, 1u);
-    } else if (theta <= badNormal) {
+    } 
+    else if (theta <= badNormal) {
         atomicAdd(stats.mediumNrml, 1u);
-    } else {
+    } 
+    else {
         atomicAdd(stats.badNrml, 1u);
-        points[currentID].color = vec3(1.0, 0.0, 0.0);
+        //points[currentID].color = vec3(1.0, 0.0, 0.0);
     }
 }

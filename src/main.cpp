@@ -6,11 +6,12 @@ int main(int argc, char* argv[]) {
     std::string plyFile;
 
 
-    // Debug mode
+    // ---------- Debug Mode - No argument means visualization ------------- //
     if (argc < 2) {
-        plyFile = "data/custom/no_normals/igea.ply";
+        plyFile = "data/custom/no_normals/torus.ply"; // model to be loaded
     }
-    // Drag and Drop
+
+    // ---------- Drag and Drop ------------- //
     else {
         plyFile = argv[1];
     }

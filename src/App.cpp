@@ -179,6 +179,7 @@ void App::setupGUI(float fps)
     ImGui::Text("Good:     %u", renderer->m_stats.goodNrml);
     ImGui::Text("Medium:   %u", renderer->m_stats.mediumNrml);
     ImGui::Text("Bad:      %u", renderer->m_stats.badNrml);
+    ImGui::Text("Flipped:      %u", renderer->m_stats.flippedNrml);
     ImGui::Text("Skipped/Occluded: %u", renderer->m_stats.occludedNrml);
     ImGui::Text("Total points with normals: %u", total - renderer->m_stats.occludedNrml);
     if (total) {
