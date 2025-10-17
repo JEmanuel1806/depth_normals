@@ -8,7 +8,6 @@
 
 class Shader {
 public:
-    // Shader program ID
     GLuint m_shaderID;;
 
 public:

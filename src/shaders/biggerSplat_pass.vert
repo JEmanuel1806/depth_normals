@@ -2,6 +2,7 @@
 
 layout (location = 0) in int ID;
 layout (location = 1) in vec3 position;
+layout(location = 3) in float splatSize;
 
 uniform mat4 view;
 uniform mat4 proj;

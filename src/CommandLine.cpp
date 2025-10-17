@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <iostream>
 
+// basic command line reading, to enable calling (I)PSR for debugging
+
 CommandLine::CommandLine()
     : m_command("") {}
 

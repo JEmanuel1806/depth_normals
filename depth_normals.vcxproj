@@ -20,6 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="includes\glm\detail\glm.cpp" />
+    <ClCompile Include="includes\imgui\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="includes\imgui\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="includes\imgui\imgui.cpp" />
+    <ClCompile Include="includes\imgui\imgui_demo.cpp" />
+    <ClCompile Include="includes\imgui\imgui_draw.cpp" />
+    <ClCompile Include="includes\imgui\imgui_tables.cpp" />
+    <ClCompile Include="includes\imgui\imgui_widgets.cpp" />
     <ClCompile Include="includes\stb_image_aug.c" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\Camera.cpp" />
@@ -281,6 +288,15 @@
     <ClInclude Include="includes\GL\glew.h" />
     <ClInclude Include="includes\GL\glxew.h" />
     <ClInclude Include="includes\GL\wglew.h" />
+    <ClInclude Include="includes\imgui\backends\imgui_impl_glfw.h" />
+    <ClInclude Include="includes\imgui\backends\imgui_impl_opengl3.h" />
+    <ClInclude Include="includes\imgui\backends\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="includes\imgui\imconfig.h" />
+    <ClInclude Include="includes\imgui\imgui.h" />
+    <ClInclude Include="includes\imgui\imgui_internal.h" />
+    <ClInclude Include="includes\imgui\imstb_rectpack.h" />
+    <ClInclude Include="includes\imgui\imstb_textedit.h" />
+    <ClInclude Include="includes\imgui\imstb_truetype.h" />
     <ClInclude Include="includes\learnOpengl\camera.h" />
     <ClInclude Include="includes\stb_image.h" />
     <ClInclude Include="includes\stb_image_aug.h" />
@@ -428,10 +444,14 @@
     <None Include="includes\glm\gtx\vector_angle.inl" />
     <None Include="includes\glm\gtx\vector_query.inl" />
     <None Include="includes\glm\gtx\wrap.inl" />
+    <None Include="includes\imgui\.editorconfig" />
+    <None Include="includes\imgui\.gitattributes" />
+    <None Include="includes\imgui\.gitignore" />
     <None Include="src\shaders\average_normal.comp" />
     <None Include="src\shaders\biggerSplat_pass.frag" />
     <None Include="src\shaders\biggerSplat_pass.vert" />
     <None Include="src\shaders\calc_normal.comp" />
+    <None Include="src\shaders\debug\calc_normal3.comp" />
     <None Include="src\shaders\debug\debug_id_tex.frag" />
     <None Include="src\shaders\debug\debug_id_tex.vert" />
     <None Include="src\shaders\debug\debug_normal_tex.frag" />
@@ -443,11 +463,15 @@
     <None Include="src\shaders\draw_lines.frag" />
     <None Include="src\shaders\draw_lines.geom" />
     <None Include="src\shaders\draw_lines.vert" />
+    <None Include="src\shaders\draw_mesh.frag" />
+    <None Include="src\shaders\draw_mesh.vert" />
     <None Include="src\shaders\draw_points.frag" />
     <None Include="src\shaders\draw_points.vert" />
+    <None Include="src\shaders\evaluate_normals.comp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
+    <Text Include="includes\imgui\LICENSE.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -507,7 +531,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/includes;$(SolutionDir)/includes/imgui;$(SolutionDir)/includes/imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -526,7 +550,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/includes;$(SolutionDir)/includes/imgui;$(SolutionDir)/includes/imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -544,7 +568,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/includes;$(SolutionDir)/includes/imgui;$(SolutionDir)/includes/imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -563,7 +587,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)/includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/includes;$(SolutionDir)/includes/imgui;$(SolutionDir)/includes/imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>

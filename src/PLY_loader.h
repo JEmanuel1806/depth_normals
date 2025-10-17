@@ -13,24 +13,17 @@
 
 #include "PointCloud.h"
 
-struct Face {
-	std::vector<int> indices;
-};
-
 class PLY_loader {
 public:
 
 	bool m_hasNormals = false;
+	bool m_isMesh = false;
 
 	PointCloud LoadPLY(const std::string& filepath);
 	void SavePLY(std::string path, PointCloud pointCloud);
 
-
-	
 private:
-	//PointCloud ExtractBinaryData(std::ifstream& ply_file);
-	PointCloud ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order, int vertices);
-	PointCloud ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order,int vertices);
-
+	PointCloud ExtractAsciiData(std::ifstream& ply_file, const std::vector<std::string>& property_order, int vertices, int faces);
+	PointCloud ExtractBinaryData(std::ifstream& ply_file, const std::vector<std::string>& property_order,int vertices, int faces);
 };
 

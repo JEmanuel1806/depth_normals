@@ -1,0 +1,74 @@
+#version 450 core
+#extension GL_NV_shader_atomic_float : enable
+layout(local_size_x = 8, local_size_y = 8) in;
+
+uniform sampler2D  splat_depth;
+uniform isampler2D splat_id;
+
+uniform ivec2 screenSize;
+uniform mat4 invProj;
+uniform mat4 view;
+uniform mat4 invView;
+uniform float maxID;
+
+uniform float zFar;
+uniform float zNear;
+
+struct NormalBuffer {
+    vec3 normal;
+    int counter;
+};
+
+layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
+
+
+vec3 reconstructPos(ivec2 fragCoord, float depth)
+{
+    vec2 ndc = (vec2(fragCoord) + 0.5) / vec2(screenSize);
+    vec4 clip = vec4(ndc * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 viewPos = invProj * clip;
+    return viewPos.xyz / viewPos.w;
+}
+
+
+void main()
+{
+    ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
+
+    if (any(lessThanEqual(pix, ivec2(0))) || any(greaterThanEqual(pix, screenSize - 1)))
+        return;
+
+    float depthC = texelFetch(splat_depth, pix, 0).r;
+    int id = texelFetch(splat_id, pix, 0).r;
+    if (id < 0 || id > int(maxID))
+        return;
+
+    float dL = texelFetch(splat_depth, pix + ivec2(-1, 0), 0).r;
+    float dR = texelFetch(splat_depth, pix + ivec2( 1, 0), 0).r;
+    float dU = texelFetch(splat_depth, pix + ivec2( 0,-1), 0).r;
+    float dD = texelFetch(splat_depth, pix + ivec2( 0, 1), 0).r;
+
+    vec3 pC = reconstructPos(pix, depthC);
+    vec3 pL = reconstructPos(pix + ivec2(-1, 0), dL);
+    vec3 pR = reconstructPos(pix + ivec2( 1, 0), dR);
+    vec3 pU = reconstructPos(pix + ivec2( 0,-1), dU);
+    vec3 pD = reconstructPos(pix + ivec2( 0, 1), dD);
+
+    vec3 dx = pR - pL;
+    vec3 dy = pD - pU;
+
+    float valid = step(1e-6, length(dx)) * step(1e-6, length(dy));
+    if (valid == 0.0) return;
+
+    vec3 nView = normalize(cross(dx, dy));
+    vec3 nWorld = normalize(mat3(invView) * nView);
+
+    vec3 prev = normalBuffer[id].normal;
+    nWorld *= sign(dot(nWorld, prev) + 1e-5);
+
+    // atomics
+    atomicAdd(normalBuffer[id].normal.x, nWorld.x);
+    atomicAdd(normalBuffer[id].normal.y, nWorld.y);
+    atomicAdd(normalBuffer[id].normal.z, nWorld.z);
+    atomicAdd(normalBuffer[id].counter, 1);
+}

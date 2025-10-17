@@ -4,6 +4,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <cmath>
 
+// Basic camera class, mostly taken from https://learnopengl.com/Getting-started/Camera
+// extended for basic needs
 
 constexpr float DEFAULT_SPEED = 2.5f;
 constexpr float DEFAULT_SENSITIVITY = 0.1f;
@@ -31,7 +33,7 @@ glm::mat4 Camera::GetViewMatrix() const {
 
 void Camera::ProcessKeyboard(CameraMovement direction, float fDeltaTime) {
    
-    HasChanged = true; // Register Keyboard to recalculate
+    HasChanged = true; 
 
     float fVelocity = m_movementSpeed * fDeltaTime;
 
@@ -61,7 +63,7 @@ void Camera::ProcessKeyboard(CameraMovement direction, float fDeltaTime) {
 
 void Camera::ProcessMouseMovement(float fXOffset, float fYOffset, bool bConstrainPitch) {
     
-    HasChanged = true; // Register Mouse Movement to recalculate
+    HasChanged = true; 
     
     fXOffset *= m_mouseSensitivity;
     fYOffset *= m_mouseSensitivity;

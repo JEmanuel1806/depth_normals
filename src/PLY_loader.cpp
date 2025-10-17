@@ -1,14 +1,10 @@
 #include "PLY_loader.h"
 
 /*
- * load_ply
- *
  * Parses a given PLY file and extracts its data into a PointCloud object.
  *
  * Open the file, parse the header and store encountered properties (x,y,z..). Check the format
  * and extract its content.
- *
- *
  */
 
 PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
@@ -17,6 +13,7 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     std::vector<std::string> property_order;
 
     int vertices = 0;
+    int faces = 0;
 
     if (!ply_file.is_open()) {
         std::cerr << "Could not open file: " << filepath << std::endl;
@@ -41,6 +38,9 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
             if (element_type == "vertex") {
                 iss >> vertices;
             }
+            if (element_type == "face") {
+                iss >> faces;
+            }
         }
         else if (keyword == "property") {
             std::string type, name;
@@ -61,10 +61,10 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     }
 
     if (ply_format == "ascii") {
-        return ExtractAsciiData(ply_file, property_order, vertices);
+        return ExtractAsciiData(ply_file, property_order, vertices, faces);
     }
     else if (ply_format == "binary_little_endian") {
-        return ExtractBinaryData(ply_file, property_order, vertices);
+        return ExtractBinaryData(ply_file, property_order, vertices, faces);
     }
     else {
         std::cerr << "Unsupported PLY format: " << ply_format << std::endl;
@@ -72,28 +72,16 @@ PointCloud PLY_loader::LoadPLY(const std::string& filepath) {
     }
 }
 
-/*
- * extract_ascii_data
- *
- * Parses the content of an ASCII PLY file and fills a PointCloud object
- *
- *  - Iterates over each line (i.e., each point) and reads values based on property_order
- *  - Assigns a unique ID to each point
- *  - Detects presence of normal attributes (nx, ny, nz) (no calculation for ply with normal data)
- *  - Assigns default color (255,255,255) if none provided
- *  - Adds the point to the cloud
- *
- */
+
 PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
     const std::vector<std::string>& property_order,
-    int vertices) {
+    int vertices, int faces) {
     PointCloud cloud;
     int id_counter = 0;
     std::string line;
     bool has_nx = false, has_ny = false, has_nz = false;
 
-    std::cout << vertices << std::endl;
-
+    cloud.m_points.reserve(vertices);
     for (int i = 0; i < vertices && std::getline(ply_file, line); i++) {
         std::istringstream iss(line);
         Point point;
@@ -136,6 +124,20 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
         cloud.AddPoint(point);
     }
 
+
+    for (int i = 0; i < faces && std::getline(ply_file, line); i++) {
+        std::istringstream iss(line);
+        int count;
+        iss >> count;
+        Face face;
+        for (int j = 0; j < count; j++) {
+            int idx;
+            iss >> idx;
+            face.indices.push_back(idx);
+        }
+        cloud.m_faces.push_back(face);
+    }
+
     std::cerr << "Loaded points: " << cloud.PointsAmount() << std::endl;
 
     return cloud;
@@ -143,12 +145,13 @@ PointCloud PLY_loader::ExtractAsciiData(std::ifstream& ply_file,
 
 PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     const std::vector<std::string>& property_order,
-    int vertices) {
+    int vertices, int faces) {
     PointCloud cloud;
     int id_counter = 0;
     bool has_nx = false, has_ny = false, has_nz = false;
 
-    while (ply_file.peek() != EOF) {
+    // --- Vertices ---
+    for (int i = 0; i < vertices; i++) {
         Point point;
         point.m_pointID = id_counter++;
         int r = 255, g = 255, b = 255;
@@ -202,10 +205,6 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
                 ply_file.read(reinterpret_cast<char*>(&c), 1);
                 b = c;
             }
-            else {
-                // Skip unknown property by type size if needed, or just ignore
-                std::cerr << "Unknown property in binary PLY: " << prop << std::endl;
-            }
         }
 
         point.m_color = glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
@@ -213,10 +212,27 @@ PointCloud PLY_loader::ExtractBinaryData(std::ifstream& ply_file,
     }
 
     cloud.m_hasNormals = has_nx && has_ny && has_nz;
-    std::cerr << "Loaded (binary) points: " << cloud.PointsAmount() << std::endl;
+
+    // --- Faces ---
+    for (int i = 0; i < faces; i++) {
+        uint8_t count;
+        ply_file.read(reinterpret_cast<char*>(&count), sizeof(uint8_t));
+
+        Face face;
+        for (int j = 0; j < count; j++) {
+            int idx;
+            ply_file.read(reinterpret_cast<char*>(&idx), sizeof(int));
+            face.indices.push_back(idx);
+        }
+        cloud.m_faces.push_back(face);
+    }
+
+    std::cerr << "Loaded (binary) points: " << cloud.PointsAmount()
+        << " , faces: " << cloud.m_faces.size() << std::endl;
     return cloud;
 }
 
+// exports the point cloud to ASCII ply file, skips invalid normals
 void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
 
     int pointsWritten = pointCloud.PointsAmount();
@@ -258,7 +274,6 @@ void PLY_loader::SavePLY(std::string path, PointCloud pointCloud){
                 << normal.x << " " << normal.y << " " << normal.z << "\n";
             }
     }
-
 
     plyOutputFile.close();
 

@@ -1,0 +1,73 @@
+#version 450 core
+layout(local_size_x = 256) in;
+
+uniform int maxID;
+
+struct Point {
+    int  pointID;
+    vec3 position; float _padA;
+    vec3 color;    float _padB;
+    vec3 normal;   float _padC;
+    float splatSize;
+};
+
+struct NormalStats {
+    uint occludedNrml;
+    uint goodNrml;
+    uint mediumNrml;
+    uint badNrml;
+    uint flippedNrml;
+};
+
+uniform float goodNormal;
+uniform float badNormal;
+
+vec3 invisible = vec3(0.141f, 0.149f, 0.192f);
+
+
+layout(std430, binding = 1) buffer PointGTBuffer { Point pointsGT[]; }; // ground truth points
+layout(std430, binding = 2) buffer PointBuffer     { Point points[];   }; // calculated points
+layout(std430, binding = 3) buffer StatsBuffer   { NormalStats stats; };
+
+void main() {
+    uint currentID = gl_GlobalInvocationID.x;
+
+     if (currentID < 0 && currentID > maxID) 
+        return;
+
+    vec3 normal   = points[currentID].normal;
+    vec3 normalGT = pointsGT[currentID].normal;
+
+    // again , subtract normals with (0,0,0) or NaN and classify them as "occluded"
+    if (any(isnan(normal)) || length(normal) < 1e-6) {
+      atomicAdd(stats.occludedNrml, 1u);
+      points[currentID].color = invisible;
+      return;
+    }
+
+    // normalize just to make sure 
+    normal   = normalize(normal);
+    normalGT = normalize(normalGT);
+    
+    // calculate dot product for angular difference
+    float d = clamp(dot(normal, normalGT), -1.0, 1.0);
+    float theta = degrees(acos(d));
+
+    // detect probably flipped normals
+    if (d < 0.0) {
+    atomicAdd(stats.flippedNrml, 1u);
+    points[currentID].color = vec3(1.0, 1.0, 0.0); 
+}
+
+    // count normals to later display percentage of good and bad normals
+    if (theta <= goodNormal) {
+        atomicAdd(stats.goodNrml, 1u);
+    } 
+    else if (theta <= badNormal) {
+        atomicAdd(stats.mediumNrml, 1u);
+    } 
+    else {
+        atomicAdd(stats.badNrml, 1u);
+        //points[currentID].color = vec3(1.0, 0.0, 0.0);
+    }
+}

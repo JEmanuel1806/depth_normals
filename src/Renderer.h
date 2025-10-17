@@ -18,8 +18,19 @@ public:
 
          GLuint qTotal, qRef, qAcc, qFin, qSplat , qReadBack, t0, t1; //performance query metrics
 
+         struct NormalStats {
+             GLuint occludedNrml = 0;
+             GLuint goodNrml = 0;
+             GLuint mediumNrml = 0;
+             GLuint badNrml = 0;
+             GLuint flippedNrml = 0;
+         };
+
+         // Debug variables for GUI
          bool m_showNormals = false;
          bool m_showPoints = true;
+         bool m_showMesh = false;
+         bool m_showMeshIPSR = false;
          bool m_showDepthOnly = false;
          bool m_recalculate = true;
          bool m_showIDMap = false;
@@ -28,6 +39,13 @@ public:
          bool m_spinPointCloudLeft = false;
          bool saveToPLY = false;
          bool automatic_mode = true;
+         
+         float totalTime = 0;
+
+         size_t cameraViewPos = 0;
+
+         enum class DisplayMode { POINTCLOUD, IPSR_MESH, POISSON_MESH };
+         DisplayMode m_displayMode = DisplayMode::POINTCLOUD;
 
          GLuint m_fboRef = 0;
          GLuint m_depthTexRef = 0;
@@ -42,21 +60,61 @@ public:
          size_t m_pointsAmount = 0;
          size_t m_pointsAmountGT = 0;
 
-         float splatSize = 3.0f;
-         float m_zNear = 0.1f;
+         int normalDebugID = 200;
+
+         float globalSplat = 0.0f; //CPU Splat 
+         float splatSize = 5.0f; //GPU splat, TODO, not used atm
+         float depthThreshold = 20.0f;
+         float m_zNear = 0.01f;
          float m_zFar = 100.0f;
+
+         float goodNormal = 10.0f; //threshold for a normal to be good (default 10 degrees of difference in dot product)
+         float badNormal = 30.0f;  //same for bad (red)
+
+         glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 3.0f);
+         float lightYaw = 0.0f;
+         float lightPitch = 0.0f;
 
          PLY_loader plyLoader;
          CommandLine cmd;
+         NormalStats m_stats;
 
 private:
          Camera* m_pCamera = nullptr;
 
          PointCloud m_pointCloud;
          PointCloud m_pointCloudGT; // ground truth
+         PointCloud m_meshIPSR;
+         PointCloud m_meshPoisson;
+         
+         GLuint m_meshVAO_IPSR = 0;
+         GLuint m_meshVAO_Poisson = 0;
+         GLuint m_meshIndexCount_IPSR = 0;
+         GLuint m_meshIndexCount_Poisson = 0;
 
-         unsigned int m_height;
-         unsigned int m_width;
+         Shader* m_pShaderDepth = nullptr;
+         Shader* m_pShaderBigSplats = nullptr;
+         Shader* m_pShaderPointsOnly = nullptr;
+         Shader* m_pShaderMesh = nullptr;
+         Shader* m_pShaderCalcNormal = nullptr;
+         Shader* m_pShaderNormalAvg = nullptr;
+         Shader* m_pShaderEvaluateNormal = nullptr;
+         Shader* m_pShaderNormalCompute = nullptr;
+         Shader* m_pShaderPointsNormals = nullptr;
+         Shader* m_pDebugTexture = nullptr;
+         Shader* m_pDebugNormalTexture = nullptr;
+         Shader* m_pDrawAABB = nullptr;
+
+         GLuint m_VAO = 0;
+         GLuint m_VBO = 0;
+         GLuint m_quadVAO = 0;
+         GLuint m_lineVAO = 0;
+         GLuint m_AABO_VAO = 0;
+         GLuint m_pointNormalSSBO;
+         GLuint m_pointGTSSBO;
+         GLuint m_pointAvgSSBO;
+         GLuint m_statsSSBO;
+         GLuint m_densitySSBO;
 
          struct BoundingBox {
              glm::vec3 min;
@@ -75,27 +133,16 @@ private:
              }
          };
 
+         struct DensityBuffer {
+             float densitySum;
+             int counter;
+         };
+
+         unsigned int m_height;
+         unsigned int m_width;
          BoundingBox aabb;
 
-         Shader* m_pShaderDepth = nullptr;
-         Shader* m_pShaderBigSplats = nullptr;
-         Shader* m_pShaderPointsOnly = nullptr;
-         Shader* m_pShaderCalcNormal = nullptr;
-         Shader* m_pShaderNormalAvg = nullptr;
-         Shader* m_pShaderNormalCompute = nullptr;
-         Shader* m_pShaderPointsNormals = nullptr;
-         Shader* m_pDebugTexture = nullptr;
-         Shader* m_pDebugNormalTexture = nullptr;
-         Shader* m_pDrawAABB = nullptr;
 
-         GLuint m_VAO = 0;
-         GLuint m_VBO = 0;
-         GLuint m_quadVAO = 0;
-         GLuint m_lineVAO = 0;
-         GLuint m_AABO_VAO = 0;
-         GLuint m_pointNormalSSBO;
-         GLuint m_pointGTSSBO;
-         GLuint m_pointAvgSSBO;
 
 private:
          void ConfigureNormalSSBO();
@@ -103,17 +150,24 @@ private:
          void ConfigureAvgSSBO();
          void ConfigureRefFBO();
          void ConfigureSplatFBO();
-         void ConfigureFBO(GLuint& fbo, GLuint& depthTex, GLuint& idTex);
+         void ConfigureStatsSSBO();
+         void ConfigureDensitySSBO();
+
+         GLuint SetupCloudVAO();
          GLuint SetupLineVAO();
          GLuint SetupQuadVAO();
+         GLuint SetupMeshVAO(const PointCloud &pc);
          GLuint SetupBBoxVAO(const BoundingBox &boundingBox);
 
-         // Render Loop
          void ComputeNormalsForView(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+         void EvaluateNormals(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+         void ComputeMeshNormals(PointCloud& mesh);
+
+
+         float ComputeSplatSize(const std::vector<Point>& points, const BoundingBox& aabb);
 
          BoundingBox CalcAABB(PointCloud &pointcloud);
-         void RenderText(float fps, PointCloud pc, PointCloud pcGT);
+         void RenderText(float fps, PointCloud pc, PointCloud pcGT, int id);
 
          float angle;
-
 };

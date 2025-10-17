@@ -5,6 +5,9 @@ layout(local_size_x = 8, local_size_y = 8) in;
 uniform sampler2D  splat_depth;
 uniform isampler2D splat_id;
 
+uniform sampler2D  ref_depth;
+uniform isampler2D ref_id;
+
 uniform ivec2 screenSize;
 uniform mat4 invProj;
 uniform mat4 view;
@@ -15,11 +18,16 @@ uniform float maxID;
 uniform float zFar;
 uniform float zNear;
 
+uniform float distanceWeight = 6; 
+uniform float depthThreshold;
+// uniform float depthCutoff = 0.001;
+
 struct NormalBuffer{
     vec3 normal;
     int counter;
 };
 
+// construct 5x5 kernel
 const ivec2 offsets[25] = ivec2[25](
     ivec2(-2,  2), ivec2(-1,  2), ivec2(0,  2), ivec2(1,  2), ivec2(2,  2),
     ivec2(-2,  1), ivec2(-1,  1), ivec2(0,  1), ivec2(1,  1), ivec2(2,  1),
@@ -29,14 +37,9 @@ const ivec2 offsets[25] = ivec2[25](
 );
 
 vec3 kernelPositions[25];
+float kernelWeights[25];
 
 layout(std430, binding = 0) buffer NormalSumBuffer { NormalBuffer normalBuffer[]; };
-
-
-float delinearize_depth(float z_buffer_depth, float zNear, float zFar) {
-    float z = z_buffer_depth * 2.0 - 1.0;
-    return (2.0 * zNear * zFar) / (zFar + zNear - z * (zFar - zNear));
-}
 
 vec3 getPos(ivec2 fragCoord, float depth) {
     vec2 ndc = ((vec2(fragCoord) + 0.5) / vec2(screenSize)) * 2.0 - 1.0;
@@ -53,28 +56,66 @@ void main() {
     float currentPixelDepth = texelFetch(splat_depth, currentPixelPos, 0).r;
     int currentPixelID = texelFetch(splat_id, currentPixelPos,0).r;
 
-    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || 
-    currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
-    return;
-    
+    // no calculation for empty pixels
+    if(currentPixelID > maxID || currentPixelID < 0)
+        return;
 
-    // reconstruct points
+    // discard pixels outside of the screen
+    if (currentPixelPos.x <= 0 || currentPixelPos.y <= 0 || currentPixelPos.x >= screenSize.x - 1 || currentPixelPos.y >= screenSize.y - 1) 
+        return;
+    
+    // reconstruct current point
     vec3 reconstructedPoint = getPos(currentPixelPos, currentPixelDepth);
 
     vec3 normalSum = vec3(0);
+    float sumDist = 0.0;
+    int   distCount = 0;
 
-    // 5x5 KERNEL
+    // 5x5 KERNEL calculation
     for (int i = 0; i < 25; ++i)
     {
+        // get current neighbor point of loop
         ivec2 kernelCoord = currentPixelPos + offsets[i];
         float kernelDepth = texelFetch(splat_depth, kernelCoord,0).r;
-        if(abs(kernelDepth - currentPixelDepth) > 0.01){
-            kernelPositions[i] = vec3(0);
-            continue;
-        }
-        kernelPositions[i] = getPos(kernelCoord, kernelDepth);
+        int neighborID = texelFetch(splat_id, kernelCoord, 0).r;
+        vec3 neighborPoint = getPos(kernelCoord, kernelDepth);
 
+        float depthDifference = neighborPoint.z - reconstructedPoint.z;
+       
+       // define weights for gaussian kernels in bilateral weighting (spatial and depth weight)
+
+        float spatialWeight = exp(-dot(offsets[i],offsets[i]) / (2.0 * distanceWeight * distanceWeight)); // pixel distance influences weight
+        float depthWeight = exp(-(depthDifference*depthDifference) / (2.0 * depthThreshold * depthThreshold)); // depth difference influences weight
+        float combinedWeight = spatialWeight * depthWeight;
+
+        // distance calculation for densitiy within kernel
+        // use reference texture for distance 
+        ivec2 kernelCoordRef = currentPixelPos + offsets[i];
+        int neighborIDRef = texelFetch(ref_id, kernelCoordRef, 0).r;
+        float kernelDepthRef = texelFetch(ref_depth, kernelCoord,0).r;
+        vec3 neighborPointRef = getPos(kernelCoord, kernelDepth);
+
+        if (neighborIDRef < 0 || neighborIDRef > maxID) {
+            continue; 
     }
+
+        // calc distance for splat size
+        if (combinedWeight < 1e-6) {
+            kernelPositions[i] = vec3(0); //invalid neighbor
+            kernelWeights[i]   = 0.0;
+        } else {
+            kernelPositions[i] = neighborPoint;
+            kernelWeights[i]   = combinedWeight;
+
+            float dist = length(neighborPointRef - reconstructedPoint);
+            if (dist > 1e-6) {
+                sumDist += dist;
+                distCount++;
+            }
+        }
+    }
+
+    // Kernel neighbor calculation
 
     vec3 leftNext  = kernelPositions[11];  // -1, 0
     vec3 leftFar   = kernelPositions[10];  // -2, 0
@@ -96,40 +137,66 @@ void main() {
     vec3 downLeftFar  = kernelPositions[20];  // -2, +2
     vec3 downRightFar = kernelPositions[24];  // +2, +2
         
+
     if (length(rightNext) > 1e-6 && length(leftNext) > 1e-6 &&
         length(upNext)    > 1e-6 && length(downNext) > 1e-6) {
-        normalSum += normalize(cross(rightNext - leftNext, upNext - downNext));
+        
+        float wpair = kernelWeights[13] * kernelWeights[11] *
+                      kernelWeights[7]  * kernelWeights[17];
+        if (wpair > 1e-6) {
+            normalSum += wpair * normalize(cross(rightNext - leftNext, upNext - downNext));
+        }
     }
     
     if (length(downLeft)  > 1e-6 && length(upRight)   > 1e-6 &&
         length(downRight) > 1e-6 && length(upLeft)    > 1e-6) {
-        normalSum += normalize(cross(downLeft - upRight, downRight - upLeft)); // diagonal
+        
+        float wpair = kernelWeights[18] * kernelWeights[16] *
+                      kernelWeights[6]  * kernelWeights[8];
+        if (wpair > 1e-6) {
+            normalSum += wpair * normalize(cross(downLeft - upRight, downRight - upLeft));
+        }
     }
     
     if (length(rightFar) > 1e-6 && length(leftFar) > 1e-6 &&
         length(upFar)    > 1e-6 && length(downFar) > 1e-6) {
-        normalSum += normalize(cross(rightFar - leftFar, upFar - downFar));
+        
+        float wpair = kernelWeights[14] * kernelWeights[10] *
+                      kernelWeights[2]  * kernelWeights[22];
+        if (wpair > 1e-6) {
+            normalSum += wpair * normalize(cross(rightFar - leftFar, upFar - downFar));
+        }
     }
     
     if (length(downLeftFar)  > 1e-6 && length(upRightFar)   > 1e-6 &&
         length(downRightFar) > 1e-6 && length(upLeftFar)    > 1e-6) {
-        normalSum += normalize(cross(downLeftFar - upRightFar, downRightFar - upLeftFar)); // diagonal
+        
+        float wpair = kernelWeights[24] * kernelWeights[20] *
+                      kernelWeights[0]  * kernelWeights[4];
+        if (wpair > 1e-6) {
+            normalSum += wpair * normalize(cross(downLeftFar - upRightFar, downRightFar - upLeftFar));
+        }
     }
-
-
-    // normal calc 
-    //vec3 normal = cross(dFdx(reconstructedPoint), dFdy(reconstructedPoint));
     
-    vec3 normal = normalize(mat3(invView) * normalSum);
+    // transform to world space
+    vec3 normal = normalize(mat3(invView) * normalSum); 
+
+    
+    vec3 prevNormal = normalBuffer[currentPixelID].normal;  // running average so far
+    if (dot(normal, prevNormal) < 0.0)
+        normal = -normal;
+    
+    // count normals
 
     atomicAdd(normalBuffer[currentPixelID].normal.x, normal.x);
     atomicAdd(normalBuffer[currentPixelID].normal.y, normal.y);
     atomicAdd(normalBuffer[currentPixelID].normal.z, normal.z);
     atomicAdd(normalBuffer[currentPixelID].counter, 1);
 
-    /* debug 
-    float delinearizedDepth = delinearize_depth(currentPixelDepth, zNear, zFar); 
-    vec3 normal = vec3(delinearizedDepth, currentPixelID, 0);
-    points[currentPixelID].normal = normal;
-    */
+    // sum up distance
+
+    if (distCount > 0) {
+        float meanDist = sumDist / float(distCount);
+        float density = 1.0 / meanDist; 
+    }
 }
